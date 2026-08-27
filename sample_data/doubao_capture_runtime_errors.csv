@@ -1,0 +1,2 @@
+﻿recorded_at,stage,status,reason,cdp_host
+2026-07-18 09:07:15,cdp_connection,skipped,无法连接豆包浏览器调试端口 127.0.0.1:9222；本轮已跳过。请运行 open_chrome_debug.bat，并在该 Chrome 中打开豆包页面。 原始错误：<urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>,http://127.0.0.1:9222

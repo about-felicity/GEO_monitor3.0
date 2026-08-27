@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "owned_brands": [
+    {
+      "name": "梵玢 FBCY",
+      "aliases": [
+        "梵玢 FBCY",
+        "梵玢",
+        "FBCY"
+      ]
+    },
+    {
+      "name": "科熙本",
+      "aliases": [
+        "科熙本"
+      ]
+    },
+    {
+      "name": "姿生怡",
+      "aliases": [
+        "姿生怡"
+      ]
+    },
+    {
+      "name": "道和",
+      "aliases": [
+        "道和"
+      ]
+    },
+    {
+      "name": "焕颜计",
+      "aliases": [
+        "焕颜计"
+      ]
+    },
+    {
+      "name": "茗媛萃",
+      "aliases": [
+        "茗媛萃"
+      ]
+    }
+  ],
+  "competitor_brands": []
+}

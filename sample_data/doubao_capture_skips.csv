@@ -1,0 +1,92 @@
+﻿skip_no,first_seen_at,last_seen_at,attempts,status,chat_url,chat_title,question,reason,body_length,assistant_text_length,has_reference_header,external_anchor_count
+1,2026-07-14 15:28:45,2026-07-14 15:28:45,1,skipped,https://www.doubao.com/chat/38434736919925762,染发剂推荐,染发剂推荐,"Doubao answer was not rendered: 导航到最新会话失败：{""target"": ""https://www.doubao.com/chat/38434736919925762"", ""last"": {""url"": ""https://www.doubao.com/chat/38434736919925762"", ""hasGrab"": true, ""hasLatestGrab"": true, ""hasReferenceHeader"": false, ""expectedCount"": 0, ""externalAnchorCount"": 0, ""bodyLength"": 258, ""assistantTextLength"": 85, ""title"": ""染发剂推荐 - 豆包""}, ""error"": """"}",0,0,False,0
+2,2026-07-17 03:16:07,2026-07-21 14:36:36,1,resolved,https://www.doubao.com/chat/38435080620348930,染发剂推荐,染发剂推荐,"Save deferred for background retry: extlib.py"", line 119, in __exit__
+    next(self.gen)
+  File ""C:\Users\AMD\Desktop\monitor\save_doubao_refs.py"", line 187, in product_data_write_lock
+    os.unlink(DATA_WRITE_LOCK)
+PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: 'C:\\Users\\AMD\\Desktop\\monitor\\doubao_product_data_write.lock'
+",707,707,True,12
+3,2026-07-18 09:52:57,2026-07-21 14:38:06,1,resolved,https://www.doubao.com/chat/38435328371267842,推荐面膜,推荐面膜,"Save deferred for background retry: extlib.py"", line 119, in __exit__
+    next(self.gen)
+  File ""C:\Users\AMD\Desktop\monitor\save_doubao_refs.py"", line 187, in product_data_write_lock
+    os.unlink(DATA_WRITE_LOCK)
+PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: 'C:\\Users\\AMD\\Desktop\\monitor\\doubao_product_data_write.lock'
+",399,399,True,11
+4,2026-07-20 17:40:48,2026-07-21 14:41:37,1,resolved,https://www.doubao.com/chat/38435290104206850,防断洗发水推荐,防断洗发水推荐,"Save deferred for background retry: extlib.py"", line 119, in __exit__
+    next(self.gen)
+  File ""C:\Users\AMD\Desktop\monitor\save_doubao_refs.py"", line 193, in product_data_write_lock
+    os.unlink(DATA_WRITE_LOCK)
+PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: 'C:\\Users\\AMD\\Desktop\\monitor\\doubao_product_data_write.lock'
+",561,561,True,17
+5,2026-07-21 13:59:36,2026-07-21 14:50:29,1,resolved,https://www.doubao.com/chat/38435515280686082,睫毛增长液推荐,睫毛增长液推荐,"Save deferred for background retry: dowBot\shadowbot-6.2.21\python\lib\contextlib.py"", line 112, in __enter__
+    return next(self.gen)
+  File ""C:\Users\AMD\Desktop\monitor\save_doubao_refs.py"", line 183, in product_data_write_lock
+    raise TimeoutError(""product data write lock is busy"")
+TimeoutError: product data write lock is busy
+",392,392,True,12
+6,2026-07-21 14:01:09,2026-07-21 14:51:27,1,resolved,https://www.doubao.com/chat/38435472805301506,睫毛增长液推荐,睫毛增长液推荐,"Save deferred for background retry: dowBot\shadowbot-6.2.21\python\lib\contextlib.py"", line 112, in __enter__
+    return next(self.gen)
+  File ""C:\Users\AMD\Desktop\monitor\save_doubao_refs.py"", line 183, in product_data_write_lock
+    raise TimeoutError(""product data write lock is busy"")
+TimeoutError: product data write lock is busy
+",512,512,True,12
+7,2026-07-21 14:02:43,2026-07-21 14:52:12,1,resolved,https://www.doubao.com/chat/38435480059787266,睫毛增长液推荐,睫毛增长液推荐,"Save deferred for background retry: dowBot\shadowbot-6.2.21\python\lib\contextlib.py"", line 112, in __enter__
+    return next(self.gen)
+  File ""C:\Users\AMD\Desktop\monitor\save_doubao_refs.py"", line 183, in product_data_write_lock
+    raise TimeoutError(""product data write lock is busy"")
+TimeoutError: product data write lock is busy
+",421,421,True,12
+8,2026-07-21 14:04:13,2026-07-21 14:53:01,1,resolved,https://www.doubao.com/chat/38435515332489730,睫毛增长液推荐,睫毛增长液推荐,"Save deferred for background retry: dowBot\shadowbot-6.2.21\python\lib\contextlib.py"", line 112, in __enter__
+    return next(self.gen)
+  File ""C:\Users\AMD\Desktop\monitor\save_doubao_refs.py"", line 183, in product_data_write_lock
+    raise TimeoutError(""product data write lock is busy"")
+TimeoutError: product data write lock is busy
+",485,485,True,12
+9,2026-07-21 14:05:43,2026-07-21 14:53:47,1,resolved,https://www.doubao.com/chat/38435411741761794,睫毛增长液推荐,睫毛增长液推荐,"Save deferred for background retry: dowBot\shadowbot-6.2.21\python\lib\contextlib.py"", line 112, in __enter__
+    return next(self.gen)
+  File ""C:\Users\AMD\Desktop\monitor\save_doubao_refs.py"", line 183, in product_data_write_lock
+    raise TimeoutError(""product data write lock is busy"")
+TimeoutError: product data write lock is busy
+",374,374,True,12
+10,2026-07-21 14:07:13,2026-07-21 14:54:32,1,resolved,https://www.doubao.com/chat/38435498349569282,睫毛增长液推荐,睫毛增长液推荐,"Save deferred for background retry: dowBot\shadowbot-6.2.21\python\lib\contextlib.py"", line 112, in __enter__
+    return next(self.gen)
+  File ""C:\Users\AMD\Desktop\monitor\save_doubao_refs.py"", line 183, in product_data_write_lock
+    raise TimeoutError(""product data write lock is busy"")
+TimeoutError: product data write lock is busy
+",430,430,True,11
+11,2026-07-21 14:08:41,2026-07-21 14:55:18,1,resolved,https://www.doubao.com/chat/38435515400925442,睫毛增长液推荐,睫毛增长液推荐,"Save deferred for background retry: dowBot\shadowbot-6.2.21\python\lib\contextlib.py"", line 112, in __enter__
+    return next(self.gen)
+  File ""C:\Users\AMD\Desktop\monitor\save_doubao_refs.py"", line 183, in product_data_write_lock
+    raise TimeoutError(""product data write lock is busy"")
+TimeoutError: product data write lock is busy
+",375,375,True,11
+12,2026-07-21 14:10:12,2026-07-21 14:56:03,1,resolved,https://www.doubao.com/chat/38435498447528706,睫毛增长液推荐,睫毛增长液推荐,"Save deferred for background retry: dowBot\shadowbot-6.2.21\python\lib\contextlib.py"", line 112, in __enter__
+    return next(self.gen)
+  File ""C:\Users\AMD\Desktop\monitor\save_doubao_refs.py"", line 183, in product_data_write_lock
+    raise TimeoutError(""product data write lock is busy"")
+TimeoutError: product data write lock is busy
+",439,439,True,11
+13,2026-07-21 14:11:39,2026-07-21 14:56:48,1,resolved,https://www.doubao.com/chat/38435480175685634,睫毛增长液推荐,睫毛增长液推荐,"Save deferred for background retry: dowBot\shadowbot-6.2.21\python\lib\contextlib.py"", line 112, in __enter__
+    return next(self.gen)
+  File ""C:\Users\AMD\Desktop\monitor\save_doubao_refs.py"", line 183, in product_data_write_lock
+    raise TimeoutError(""product data write lock is busy"")
+TimeoutError: product data write lock is busy
+",358,358,True,12
+14,2026-07-21 14:13:14,2026-07-21 14:57:34,1,resolved,https://www.doubao.com/chat/38435473073727490,睫毛增长液推荐,睫毛增长液推荐,"Save deferred for background retry: dowBot\shadowbot-6.2.21\python\lib\contextlib.py"", line 112, in __enter__
+    return next(self.gen)
+  File ""C:\Users\AMD\Desktop\monitor\save_doubao_refs.py"", line 183, in product_data_write_lock
+    raise TimeoutError(""product data write lock is busy"")
+TimeoutError: product data write lock is busy
+",366,366,True,12
+15,2026-07-21 14:14:44,2026-07-21 14:58:19,1,resolved,https://www.doubao.com/chat/38435411790819842,睫毛增长液推荐,睫毛增长液推荐,"Save deferred for background retry: dowBot\shadowbot-6.2.21\python\lib\contextlib.py"", line 112, in __enter__
+    return next(self.gen)
+  File ""C:\Users\AMD\Desktop\monitor\save_doubao_refs.py"", line 183, in product_data_write_lock
+    raise TimeoutError(""product data write lock is busy"")
+TimeoutError: product data write lock is busy
+",431,431,True,12
+16,2026-07-21 14:16:12,2026-07-21 14:59:04,1,resolved,https://www.doubao.com/chat/38435479981463554,睫毛增长液推荐,睫毛增长液推荐,"Save deferred for background retry: dowBot\shadowbot-6.2.21\python\lib\contextlib.py"", line 112, in __enter__
+    return next(self.gen)
+  File ""C:\Users\AMD\Desktop\monitor\save_doubao_refs.py"", line 183, in product_data_write_lock
+    raise TimeoutError(""product data write lock is busy"")
+TimeoutError: product data write lock is busy
+",405,405,True,12

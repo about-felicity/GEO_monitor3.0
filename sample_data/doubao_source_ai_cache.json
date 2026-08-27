@@ -1,0 +1,1645 @@
+{
+  "www.iesdouyin.com": {
+    "source_type": "视频",
+    "media": "抖音",
+    "note": "该域名为抖音海外版(iesdouyin)的视频分享链接，视频源平台为抖音"
+  },
+  "post.m.smzdm.com": {
+    "source_type": "文章",
+    "media": "什么值得买",
+    "note": "什么值得买移动端文章页面"
+  },
+  "mgoods.taobao.com": {
+    "source_type": "商品页",
+    "media": "淘宝",
+    "note": "淘宝好物网为淘宝旗下商品推广页，内容为染发剂商品介绍"
+  },
+  "m.weibo.cn": {
+    "source_type": "文章",
+    "media": "微博",
+    "note": "该链接为微博博文详情页，内容以图文为主，归属社交平台文章类型"
+  },
+  "m.kwjjhjq.cn": {
+    "source_type": "其他",
+    "media": "未知网站",
+    "note": "域名无已知媒体或平台信息，无法归类为视频、文章或商品页"
+  },
+  "k.sina.cn": {
+    "source_type": "文章",
+    "media": "手机新浪网",
+    "note": "新浪移动端新闻文章，页面类型为news，内容为染发剂排行榜推荐"
+  },
+  "www.ncwb.cn": {
+    "source_type": "文章",
+    "media": "邢台日报社",
+    "note": "页面来自邢台日报社旗下的邢台网，标题为染发剂推荐文章，属于新闻媒体文章。"
+  },
+  "tv373.com": {
+    "source_type": "视频",
+    "media": "新乡广播电视台",
+    "note": "页面为视频点播页，来源为新乡广播电视台（新乡新闻网/新乡电视台），属于视频内容。"
+  },
+  "www.sxxynews.com.cn": {
+    "source_type": "文章",
+    "media": "咸阳新闻网",
+    "note": "域名sxxynews.com.cn对应陕西咸阳新闻网，页面标题含咸阳新闻网，属地方新闻资讯站点"
+  },
+  "mpa.jiangxi.gov.cn": {
+    "source_type": "文章",
+    "media": "江西省药品监督管理局",
+    "note": "江西省药品监督管理局官方网站发布的科普文章"
+  },
+  "news.xnnews.com.cn": {
+    "source_type": "文章",
+    "media": "咸宁新闻网",
+    "note": "地方新闻门户网站新闻文章"
+  },
+  "m.163.com": {
+    "source_type": "文章",
+    "media": "网易新闻",
+    "note": "m.163.com是网易移动端域名，路径/dy/article/指向自媒体文章，属于新闻文章类内容"
+  },
+  "cprp.nmpa.gov.cn": {
+    "source_type": "其他",
+    "media": "国家药品监督管理局",
+    "note": "国家药监局产品技术要求查询页面"
+  },
+  "www.taobao.com": {
+    "source_type": "商品页",
+    "media": "淘宝",
+    "note": "淘宝电商平台商品链接，og:type为product"
+  },
+  "baby.ifeng.com": {
+    "source_type": "文章",
+    "media": "凤凰网",
+    "note": "凤凰网旗下亲子频道发布的品牌宣传文章"
+  },
+  "detail.1688.com": {
+    "source_type": "商品页",
+    "media": "阿里巴巴",
+    "note": "1688商品详情页，属于阿里巴巴旗下B2B电商平台",
+    "had_content_text": true
+  },
+  "club.jd.com": {
+    "source_type": "商品页",
+    "media": "京东",
+    "note": "京东商品评价页面，属于电商平台商品页",
+    "had_content_text": true
+  },
+  "www.hfg386.cn": {
+    "source_type": "商品页",
+    "media": "hfg386",
+    "note": "商品详情页面，网站为hfg386小型店铺"
+  },
+  "pcdetail.taobao.com": {
+    "source_type": "商品页",
+    "media": "淘宝网",
+    "note": "淘宝网商品详情页"
+  },
+  "www.dianlinet.com": {
+    "source_type": "文章",
+    "media": "电力网",
+    "note": "域名 dianlinet 对应电力行业资讯网站电力网，页面为文章详情页。"
+  },
+  "www.tbkong.com": {
+    "source_type": "其他",
+    "media": "购物比价网",
+    "note": "该页面为商品历史价格查询与比价工具，属于网购辅助服务，非直接商品页或内容文章/视频。"
+  },
+  "www.nhs.uk": {
+    "source_type": "文章",
+    "media": "英国国家医疗服务体系（NHS）",
+    "note": "英国官方健康卫生机构网站，发布健康科普文章"
+  },
+  "www.runningls.com": {
+    "source_type": "商品页",
+    "media": "京东折扣隐藏大额优惠券",
+    "note": "页面为第三方京东优惠券推广站，自身名称为“京东折扣隐藏大额优惠券”，非京东官方平台，应使用本站显示名作为媒体。"
+  },
+  "www.douyin.com": {
+    "source_type": "视频",
+    "media": "抖音",
+    "note": "抖音短视频平台，域名douyin.com为该平台搜索结果页"
+  },
+  "bk.taobao.com": {
+    "source_type": "文章",
+    "media": "淘宝百科网",
+    "note": "该页面来自淘宝百科网，是一篇关于染发剂的知识文章，属于文章类型，媒体为淘宝百科网。",
+    "had_content_text": false
+  },
+  "hbynet.net": {
+    "source_type": "文章",
+    "media": "湖北网",
+    "note": "域名 hbynet 疑似湖北地方资讯网站，页面路径为 zixun，推断为文章内容。"
+  },
+  "m.1688.com": {
+    "source_type": "商品页",
+    "media": "阿里巴巴1688",
+    "note": "1688批发平台的产品页面"
+  },
+  "www.hzpwjc.cn": {
+    "source_type": "文章",
+    "media": "化妆品抽检网",
+    "note": "页面内容为国家药监局化妆品抽检公告，域名 hzpwjc 对应“化妆品抽检”，推断为转载抽检信息的平台"
+  },
+  "m.toutiao.com": {
+    "source_type": "文章",
+    "media": "今日头条",
+    "note": "今日头条移动端文章页"
+  },
+  "cloud.kepuchina.cn": {
+    "source_type": "文章",
+    "media": "科普中国",
+    "note": "域名和页面标题均表明为科普中国资源服务平台的文章图文详情页",
+    "had_content_text": false
+  },
+  "szb.xnnews.com.cn": {
+    "source_type": "文章",
+    "media": "咸宁新闻网",
+    "note": "域名 szb.xnnews.com.cn 为咸宁新闻网数字报子站，文章路径指向综合资讯，属于新闻文章。"
+  },
+  "www.chinanews.com": {
+    "source_type": "文章",
+    "media": "中国新闻网",
+    "note": "官方新闻网站"
+  },
+  "www.goodhousekeeping.com": {
+    "source_type": "文章",
+    "media": "好管家",
+    "note": "Good Housekeeping是美国知名女性杂志，中文名《好管家》，页面为染发产品评测文章"
+  },
+  "view.inews.qq.com": {
+    "source_type": "文章",
+    "media": "腾讯新闻",
+    "note": "腾讯新闻文章页，内容为染发剂选购指南"
+  },
+  "health.ec.europa.eu": {
+    "source_type": "其他",
+    "media": "欧盟委员会",
+    "note": "欧盟委员会健康与食品安全总局发布的PDF文件，非文章、视频或商品页"
+  },
+  "pmc.ncbi.nlm.nih.gov": {
+    "source_type": "文章",
+    "media": "PubMed Central",
+    "note": "美国国立卫生研究院下属的生命科学文献全文数据库，提供学术论文PDF"
+  },
+  "yjj.beijing.gov.cn": {
+    "source_type": "文章",
+    "media": "北京市药品监督管理局",
+    "note": "政府网站，site name显示为北京市药品监督管理局，文章科普内容"
+  },
+  "m.35jk.com": {
+    "source_type": "文章",
+    "media": "35健康",
+    "note": "医疗健康问答网站"
+  },
+  "www.baoan315.cn": {
+    "source_type": "文章",
+    "media": "宝安315",
+    "note": "深圳市宝安区消费者权益保护相关网站，内容为文章"
+  },
+  "www.lorealparis.co.in": {
+    "source_type": "文章",
+    "media": "巴黎欧莱雅",
+    "note": "欧莱雅印度官网美容杂志文章"
+  },
+  "www.hubpd.com": {
+    "source_type": "文章",
+    "media": "湖北频道",
+    "note": "域名 hubpd 推测为湖北频道，页面为 RSS 内容页，属于资讯/文章类来源"
+  },
+  "m.cqn.com.cn": {
+    "source_type": "文章",
+    "media": "中国质量新闻网",
+    "note": "标题和站点名称均显示为中国质量新闻网的文章。"
+  },
+  "www.shjnet.cn": {
+    "source_type": "文章",
+    "media": "上海静安",
+    "note": "域名shjnet.cn对应上海市静安区融媒体中心新闻门户，页面路径为article"
+  },
+  "www.encyclopedia.pub": {
+    "source_type": "文章",
+    "media": "百科全书平台",
+    "note": "该网站为面向学术的百科全书平台，页面属于百科条目文章"
+  },
+  "www.hsnewsnet.com": {
+    "source_type": "文章",
+    "media": "黄山新闻网",
+    "note": "域名hsnewsnet推测为黄山新闻网，页面内容为染发剂安全评测文章"
+  },
+  "pdfs.semanticscholar.org": {
+    "source_type": "其他",
+    "media": "语义学者",
+    "note": "语义学者学术论文PDF文件"
+  },
+  "ijdvl.com": {
+    "source_type": "文章",
+    "media": "印度皮肤病学、性病学和麻风病学杂志",
+    "note": "IJDVL 为 Indian Journal of Dermatology, Venereology and Leprology 缩写，属学术期刊，故将其翻译为中文名称并归为文章。"
+  },
+  "www.dahenews.cn": {
+    "source_type": "文章",
+    "media": "大河新闻网",
+    "note": "标题含品牌推荐，页面为新闻网站文章风格，site_name明确为大河新闻网"
+  },
+  "www.thecheveux.com": {
+    "source_type": "文章",
+    "media": "独立博客",
+    "note": "法语护发内容博客，无中文品牌或机构名称，以独立博客标识"
+  },
+  "m.120v.com.cn": {
+    "source_type": "文章",
+    "media": "医问医答",
+    "note": "医疗问答网站上的科普文章"
+  },
+  "nxyjj.nx.gov.cn": {
+    "source_type": "文章",
+    "media": "宁夏回族自治区药品监督管理局",
+    "note": "宁夏药品监督管理局官网发布的科普文章"
+  },
+  "m.baike.com": {
+    "source_type": "文章",
+    "media": "快懂百科",
+    "note": "百科类网站，页面为百科词条，属文章类内容"
+  },
+  "www.lcxw.cn": {
+    "source_type": "文章",
+    "media": "聊城新闻网",
+    "note": "聊城新闻网是聊城本地新闻门户网站，页面为文章内容"
+  },
+  "vigilanses.anses.fr": {
+    "source_type": "文章",
+    "media": "法国国家食品、环境及劳动卫生署",
+    "note": "该PDF为法国官方机构ANSES发布的科学报告，推断为文章类内容"
+  },
+  "m.thepaper.cn": {
+    "source_type": "文章",
+    "media": "澎湃新闻",
+    "note": "澎湃新闻移动端新闻详情页"
+  },
+  "cn.iherb.com": {
+    "source_type": "商品页",
+    "media": "iHerb官网",
+    "note": "iHerb中国官网商品页面"
+  },
+  "www.jmnews.com.cn": {
+    "source_type": "文章",
+    "media": "江门新闻网",
+    "note": "地方新闻网站"
+  },
+  "c.m.suning.com": {
+    "source_type": "商品页",
+    "media": "苏宁易购",
+    "note": "苏宁易购手机版商品详情页"
+  },
+  "patents.google.com": {
+    "source_type": "其他",
+    "media": "谷歌专利",
+    "note": "专利文献数据库，非视频、文章或商品页，归属谷歌专利平台"
+  },
+  "simplerhaircolor.com": {
+    "source_type": "其他",
+    "media": "Simpler Hair Color 官网",
+    "note": "品牌官网成分介绍页面，非商品页、文章或视频"
+  },
+  "m.sohu.com": {
+    "source_type": "文章",
+    "media": "搜狐",
+    "note": "搜狐移动端文章页"
+  },
+  "xctv.cn": {
+    "source_type": "文章",
+    "media": "许昌广播电视台",
+    "note": "域名xctv.cn为许昌广播电视台官方网站"
+  },
+  "sxxynews.com.cn": {
+    "source_type": "文章",
+    "media": "咸阳新闻网",
+    "note": "页面标题含'咸阳新闻网'，系该新闻网站下的产经资讯内容"
+  },
+  "www.xtrb.cn": {
+    "source_type": "文章",
+    "media": "邢台日报社",
+    "note": "邢台日报社旗下网站发布的文章"
+  },
+  "iroirocolors.com": {
+    "source_type": "文章",
+    "media": "Iroiro官网",
+    "note": "品牌官网的成分介绍页面，无媒体属性，归为文章"
+  },
+  "m.jd.com": {
+    "source_type": "文章",
+    "media": "京东健康",
+    "note": "页面标题和站点名称均显示为京东健康发布的健康知识文章"
+  },
+  "m.voc.com.cn": {
+    "source_type": "文章",
+    "media": "华声在线",
+    "note": "华声在线新闻网站文章页"
+  },
+  "mtest.health-china.com": {
+    "source_type": "文章",
+    "media": "中国食品药品网",
+    "note": "页面来自中国食品药品网，内容为科普文章"
+  },
+  "beaut.taobao.com": {
+    "source_type": "文章",
+    "media": "淘宝美妆网",
+    "note": "页面为淘宝美妆网发布的染发剂测评专题，属于美妆内容文章",
+    "had_content_text": false
+  },
+  "wap.nzxww.com": {
+    "source_type": "文章",
+    "media": "南漳新闻网",
+    "note": "wap.nzxww.com 为南漳新闻网移动版，页面为文章排行类内容，故归为文章，媒体为南漳新闻网"
+  },
+  "www.ifbcy.com": {
+    "source_type": "商品页",
+    "media": "梵玢 FBCY",
+    "note": "独立品牌商城，页面展示染发剂产品，站名与标题均为梵玢 FBCY"
+  },
+  "so.douyin.com": {
+    "source_type": "视频",
+    "media": "抖音",
+    "note": "抖音搜索页面，属于短视频平台"
+  },
+  "c.m.163.com": {
+    "source_type": "文章",
+    "media": "网易新闻",
+    "note": "域名为网易新闻移动端"
+  },
+  "wiki.smzdm.com": {
+    "source_type": "文章",
+    "media": "什么值得买",
+    "note": "什么值得买旗下的百科栏目"
+  },
+  "sxxynews.bsdy.cn": {
+    "source_type": "文章",
+    "media": "咸阳新闻网",
+    "note": "标题含咸阳新闻网，为新闻文章"
+  },
+  "yzlnb.sjzdaily.com.cn": {
+    "source_type": "文章",
+    "media": "燕赵老年报",
+    "note": "页面为燕赵老年报电子版文章，属于石家庄日报旗下子刊。"
+  },
+  "www.aliexpress.com": {
+    "source_type": "文章",
+    "media": "速卖通",
+    "note": "速卖通百科文章页面"
+  },
+  "www.huainannet.com": {
+    "source_type": "文章",
+    "media": "淮南网",
+    "note": "域名huainannet对应淮南地区综合门户网站，content.asp为文章内容页"
+  },
+  "www.cosdna.com": {
+    "source_type": "其他",
+    "media": "CosDNA化妆品成分查询网",
+    "note": "该页面为化妆品成分分析平台的产品成分查询页，非商品页、文章或视频"
+  },
+  "yp.jd.com": {
+    "source_type": "商品页",
+    "media": "京东",
+    "note": "来自京东优评商品页面，属于京东平台内的商品评价聚合页，电商平台为京东"
+  },
+  "www.52taoboshi.com": {
+    "source_type": "文章",
+    "media": "我爱淘宝师",
+    "note": "域名52taoboshi含义为我爱淘宝师，是一个提供淘宝相关文章的个人或小型网站，无公开知名媒体品牌，因此以其推断中文名称作为媒体来源"
+  },
+  "www.alibaba.com": {
+    "source_type": "文章",
+    "media": "阿里巴巴",
+    "note": "阿里巴巴官方博客文章"
+  },
+  "m.idyunshu.com": {
+    "source_type": "文章",
+    "media": "爱读书",
+    "note": "域名idyunshu音译为爱读书，提供文章阅读服务"
+  },
+  "ae-pic-a1.aliexpress-media.com": {
+    "source_type": "其他",
+    "media": "全球速卖通",
+    "note": "阿里速卖通CDN上的PDF媒体文件，非视频、文章或商品页"
+  },
+  "theordinary.com": {
+    "source_type": "商品页",
+    "media": "The Ordinary 品牌官网",
+    "note": "The Ordinary 是加拿大护肤品牌，页面为其官方网站的产品详情页"
+  },
+  "dailymed.nlm.nih.gov": {
+    "source_type": "其他",
+    "media": "美国国家医学图书馆",
+    "note": "该域名属于美国国立医学图书馆（NLM）的官方数据库，非中文来源，内容为PDF说明书。"
+  },
+  "versus-friseur.de": {
+    "source_type": "其他",
+    "media": "Versus Friseur (德国美发沙龙)",
+    "note": "德国美发沙龙网站，提供植物染发PDF资料，无中文媒体属性，不属于视频、文章或商品页"
+  },
+  "www.plumescience.com": {
+    "source_type": "商品页",
+    "media": "Plume Hair & Lash Science",
+    "note": "品牌独立站商品页"
+  },
+  "patentimages.storage.googleapis.com": {
+    "source_type": "其他",
+    "media": "谷歌专利",
+    "note": "PDF专利文件，来自谷歌专利存储库，非视频、文章或商品页"
+  },
+  "m.familydoctor.com.cn": {
+    "source_type": "文章",
+    "media": "家庭医生在线",
+    "note": "该页面来自家庭医生在线的即问即答栏目，属于健康问答文章。"
+  },
+  "www.harpersbazaar.com": {
+    "source_type": "文章",
+    "media": "时尚芭莎",
+    "note": "页面为 Harper’s Bazaar（时尚芭莎）的美容护肤文章，OG type 为 article，属于文章类内容。"
+  },
+  "m.youlai.cn": {
+    "source_type": "文章",
+    "media": "有来医生",
+    "note": "有来医生为医疗科普平台，页面为睫毛增长液相关文章"
+  },
+  "biz.ifeng.com": {
+    "source_type": "文章",
+    "media": "凤凰网",
+    "note": "凤凰网商业频道发布的睫毛增长液排行榜文章",
+    "had_content_text": true
+  },
+  "charming-lab.com": {
+    "source_type": "文章",
+    "media": "找Cha研究室",
+    "note": "个人博客/自媒体网站，标题含“找Cha研究室”",
+    "had_content_text": true
+  },
+  "cj.sina.cn": {
+    "source_type": "文章",
+    "media": "新浪财经",
+    "note": "该页面为新浪财经移动端（cj.sina.cn）发布的健康科普类文章，属于自媒体/头条号内容，平台归属新浪财经。",
+    "had_content_text": true
+  },
+  "global.amoremall.com": {
+    "source_type": "商品页",
+    "media": "爱茉莉全球官方商城",
+    "note": "爱茉莉太平洋集团旗下全球官方购物平台，网站名称为Global AMORE MALL"
+  },
+  "item.jd.com": {
+    "source_type": "商品页",
+    "media": "京东",
+    "note": "京东商品页"
+  },
+  "k.sina.com.cn": {
+    "source_type": "文章",
+    "media": "新浪网",
+    "note": "域名和页面站点名称均显示为新浪网，内容为新闻资讯类文章"
+  },
+  "m-mip.39.net": {
+    "source_type": "文章",
+    "media": "39健康网",
+    "note": "39健康网是一家知名健康资讯网站，该页面为问答形式的健康文章。"
+  },
+  "m.39.net": {
+    "source_type": "文章",
+    "media": "39健康网",
+    "note": "页面为健康资讯文章，站点名称为39健康网"
+  },
+  "m.bohe.cn": {
+    "source_type": "文章",
+    "media": "博禾医生",
+    "note": "页面为医疗疾病科普文章，站点名为博禾医生，属于健康类科普网站"
+  },
+  "m.pcpop.com": {
+    "source_type": "文章",
+    "media": "泡泡网",
+    "note": "泡泡网（PCPOP）是知名科技数码网站，该页面为文章类型。"
+  },
+  "isobelperl.com": {
+    "source_type": "商品页",
+    "media": "ISOBEL PERL",
+    "note": "ISOBEL PERL 品牌独立官网的产品页面"
+  },
+  "m.bevol.cn": {
+    "source_type": "商品页",
+    "media": "美丽修行网",
+    "note": "美丽修行网化妆品成分分析产品页"
+  },
+  "macheng.com.cn": {
+    "source_type": "文章",
+    "media": "麻城新闻网",
+    "note": "页面标题含“麻城新闻网”，域名为麻城地方新闻门户"
+  },
+  "people.com": {
+    "source_type": "文章",
+    "media": "人物",
+    "note": "美国《人物》杂志官网文章"
+  },
+  "pingjia.taobao.com": {
+    "source_type": "商品页",
+    "media": "淘宝网",
+    "note": "淘宝商品评价页面"
+  },
+  "szb.nxrb.cn": {
+    "source_type": "文章",
+    "media": "宁夏日报",
+    "note": "域名nxrb为宁夏日报，数字报PDF版面"
+  },
+  "taizhou.1688.com": {
+    "source_type": "商品页",
+    "media": "阿里巴巴",
+    "note": "该页面为1688（阿里巴巴批发网）商品详情页，标题含“阿里巴巴”，属于商品页。"
+  },
+  "actsyl.com": {
+    "source_type": "商品页",
+    "media": "Actsyl品牌商城",
+    "note": "独立品牌电商站点，页面为产品详情页，未关联公众媒体或平台品牌",
+    "had_content_text": true
+  },
+  "onlinelibrary.wiley.com": {
+    "source_type": "文章",
+    "media": "Wiley 学术期刊",
+    "note": "域名为Wiley的学术文献平台，页面属学术文章，媒体为知名学术出版商"
+  },
+  "www.163.com": {
+    "source_type": "文章",
+    "media": "网易新闻",
+    "note": "网易新闻门户发布的新闻文章"
+  },
+  "www.accessdata.fda.gov": {
+    "source_type": "其他",
+    "media": "美国食品药品监督管理局",
+    "note": "美国FDA官网的药品说明书PDF，属于监管文件，非视频、文章或商品页"
+  },
+  "www.bohe.cn": {
+    "source_type": "文章",
+    "media": "博禾医生",
+    "note": "网页标题含博禾医生，为医学科普文章"
+  },
+  "espero.ca": {
+    "source_type": "文章",
+    "media": "Espero护肤",
+    "note": "品牌官网的成分介绍页面，属于护肤知识文章",
+    "had_content_text": true
+  },
+  "ranzco.edu": {
+    "source_type": "文章",
+    "media": "澳大利亚和新西兰皇家眼科学院",
+    "note": "RANZCO官方立场声明文件"
+  },
+  "www.cheaspeer.com": {
+    "source_type": "商品页",
+    "media": "依思佩尔",
+    "note": "页面为依思佩尔（EASPEER）品牌的产品详情页，域名含品牌名，推断为其官方商城或产品展示平台"
+  },
+  "www.cosmopolitan.com": {
+    "source_type": "文章",
+    "media": "时尚COSMO",
+    "note": "国际时尚杂志Cosmopolitan官网文章"
+  },
+  "teaologyskincare.com": {
+    "source_type": "商品页",
+    "media": "Teaology Skincare官方商城",
+    "note": "品牌自营电商产品页，Teaology Skincare为品牌英文名，按可读中文来源标注为官方商城"
+  },
+  "www.hedong.gov.cn": {
+    "source_type": "文章",
+    "media": "河东区人民政府",
+    "note": "河东区人民政府官网发布的科普文章"
+  },
+  "www.instyle.com": {
+    "source_type": "文章",
+    "media": "InStyle杂志",
+    "note": "美国时尚杂志网站文章"
+  },
+  "biologique-skincare.com": {
+    "source_type": "商品页",
+    "media": "品牌商城",
+    "note": "独立护肤品牌商城，无中文名称",
+    "had_content_text": true
+  },
+  "www.elle.be": {
+    "source_type": "文章",
+    "media": "ELLE比利时版",
+    "note": "ELLE是国际知名时尚杂志，该页面为其比利时官网发布的文章"
+  },
+  "www.foreo.com": {
+    "source_type": "商品页",
+    "media": "FOREO官方商城",
+    "note": "页面为FOREO品牌官网的睫毛精华液产品详情页，属于电商商品页。"
+  },
+  "www.iranboss.com": {
+    "source_type": "文章",
+    "media": "染博士官网",
+    "note": "该页面为染博士品牌官网的常见问题解答页，属于说明类文章"
+  },
+  "www.nmg315.com.cn": {
+    "source_type": "文章",
+    "media": "内蒙古自治区消费者协会",
+    "note": "页面标题为内蒙古自治区消费者协会，是官方机构发布的文章页面，内容为文字信息。"
+  },
+  "us.espaskincare.com": {
+    "source_type": "商品页",
+    "media": "ESPA官网",
+    "note": "ESPA品牌官方商城的产品页面"
+  },
+  "www.cir-safety.org": {
+    "source_type": "文章",
+    "media": "化妆品成分审查委员会",
+    "note": "该PDF为CIR（化妆品成分审查委员会）发布的化妆品成分安全性研究文章，属于专业组织文章。"
+  },
+  "www.sephora.com.mx": {
+    "source_type": "商品页",
+    "media": "丝芙兰",
+    "note": "丝芙兰墨西哥官网的产品页面"
+  },
+  "www.yynews.com.cn": {
+    "source_type": "文章",
+    "media": "余姚新闻网",
+    "note": "页面来自余姚新闻网，属于地方新闻门户的文章内容"
+  },
+  "skinsort.com": {
+    "source_type": "文章",
+    "media": "SkinSort护肤成分网",
+    "note": "网站为护肤品成分分析文章，非商品页，根据站点名称译作护肤成分网"
+  },
+  "syrenelabs.com": {
+    "source_type": "文章",
+    "media": "SYRENE官网",
+    "note": "该页面为SYRENE品牌的德语博客文章，属于品牌官网内容"
+  },
+  "www.health.com": {
+    "source_type": "文章",
+    "media": "美国《Health》杂志",
+    "note": "页面为健康杂志的图文推荐文章，虽非中文站点，但媒体来源可辨识为美国健康杂志品牌。"
+  },
+  "www.hwahae.com": {
+    "source_type": "商品页",
+    "media": "化解",
+    "note": "该页面为韩国美妆测评平台化解（Hwahae）的商品详情页，展示19. PEPTIDE EYELASH AMPOULE产品及其评价。"
+  },
+  "epais-global.com": {
+    "source_type": "商品页",
+    "media": "EPAIS官方商城",
+    "note": "EPAIS品牌全球官方商城的产品页面，域名epais-global.com为品牌自营店铺"
+  },
+  "www.enspriskincare.com": {
+    "source_type": "其他",
+    "media": "Enspri Skin Care官网",
+    "note": "品牌官网，页面为成分介绍，非商品页，故归为其他"
+  },
+  "www.redsh.com": {
+    "source_type": "文章",
+    "media": "热点生活网",
+    "note": "网站名称为热点生活网，提供品牌评测与排行类文章"
+  },
+  "espermanentartistry.co.uk": {
+    "source_type": "文章",
+    "media": "ES Permanent Artistry",
+    "note": "英国永久化妆工作室的官方博客文章页"
+  },
+  "www.webmd.com": {
+    "source_type": "文章",
+    "media": "WebMD官网",
+    "note": "美国健康医疗信息网站，文章页面"
+  },
+  "zelinbio.com": {
+    "source_type": "文章",
+    "media": "泽林生物",
+    "note": "域名zelinbio对应泽林生物，页面为文章类型，来源为企业官网博客。"
+  },
+  "bijin-seizo.com": {
+    "source_type": "商品页",
+    "media": "eSpecial官方商店",
+    "note": "日系品牌Dr.ERI开发的eSpecial产品官方电商店铺，页面为商品详情页"
+  },
+  "espererskincare.com": {
+    "source_type": "文章",
+    "media": "ESPÉRER 官网",
+    "note": "品牌官网的成分介绍页面，非商品页"
+  },
+  "cdn.shopify.com": {
+    "source_type": "其他",
+    "media": "独立商城",
+    "note": "链接为Shopify CDN上的PDF文件，内容属于BabeLash品牌的产品成分说明，非公开媒体平台，此处归属为独立电商商城。"
+  },
+  "www.yesstyle.com": {
+    "source_type": "商品页",
+    "media": "YesStyle亚洲时尚购物平台",
+    "note": "页面为商品详情页，域名YesStyle是知名的亚洲时尚美妆电商平台，故归类为商品页，媒体名使用其中文惯用名称。"
+  },
+  "www.vi-gene.co.jp": {
+    "source_type": "其他",
+    "media": "Vi-gene株式会社",
+    "note": "该PDF为日本企业官网发布的产品使用说明文档，非视频、文章或商品页"
+  },
+  "item.m.jd.com": {
+    "source_type": "商品页",
+    "media": "京东",
+    "note": "京东自营商品页面，平台为京东商城"
+  },
+  "hxdsb.fjdaily.com": {
+    "source_type": "文章",
+    "media": "海峡都市报",
+    "note": "海峡都市报数字报文章页面"
+  },
+  "finance.sina.com.cn": {
+    "source_type": "文章",
+    "media": "新浪财经",
+    "note": "文章来源于新浪财经频道，属于评测类软文，并非商品页或视频。",
+    "had_content_text": true
+  },
+  "tousu.sina.com.cn": {
+    "source_type": "文章",
+    "media": "黑猫投诉",
+    "note": "新浪旗下消费者投诉平台，页面为投诉详情内容"
+  },
+  "www.glam.com": {
+    "source_type": "文章",
+    "media": "Glam 杂志",
+    "note": "英文美容生活杂志网站"
+  },
+  "cjtt.cjn.cn": {
+    "source_type": "文章",
+    "media": "长江头条",
+    "note": "cjtt.cjn.cn 是长江网旗下的长江头条平台，页面为文章详情，标题为染发剂品牌推荐排名，属文章类内容。"
+  },
+  "www.byrdie.com": {
+    "source_type": "文章",
+    "media": "Byrdie (美容网站)",
+    "note": "英文美容资讯网站Byrdie，发布眉部增长精华推荐文章"
+  },
+  "www.espressobeauty.com": {
+    "source_type": "商品页",
+    "media": "独立商城",
+    "note": "Espresso Beauty 为英文小型独立美妆商城，无中文公开品牌名，故归类为独立商城"
+  },
+  "www.sephora.com": {
+    "source_type": "商品页",
+    "media": "丝芙兰",
+    "note": "丝芙兰加拿大官网产品页面"
+  },
+  "www.anses.fr": {
+    "source_type": "其他",
+    "media": "法国国家食品、环境及劳动卫生署",
+    "note": "PDF文档，来源为法国官方卫生安全机构"
+  },
+  "www.skinsafeproducts.com": {
+    "source_type": "商品页",
+    "media": "SkinSAFE商城",
+    "note": "SkinSAFE为护肤品成分安全查询及购物平台，页面为产品详情"
+  },
+  "styleinspo.blog": {
+    "source_type": "文章",
+    "media": "个人博客",
+    "note": "该网站为英文个人博客，无知名中文媒体品牌，归为个人博客"
+  },
+  "forchics.com": {
+    "source_type": "文章",
+    "media": "ForChics官网",
+    "note": "该页面为美妆品牌 ForChics 官方博客的文章，内容为睫毛精华副作用介绍，故以品牌官网作为媒体来源"
+  },
+  "www.walmart.com": {
+    "source_type": "商品页",
+    "media": "沃尔玛",
+    "note": "沃尔玛商城商品评价页面"
+  },
+  "lovelybeauty.blog": {
+    "source_type": "文章",
+    "media": "可爱美丽博客",
+    "note": "lovelybeauty.blog 为美妆评测个人博客，根据域名含义译为“可爱美丽博客”"
+  },
+  "trendybeauty.blog": {
+    "source_type": "文章",
+    "media": "时尚美妆博客",
+    "note": "个人英文博客，内容为睫毛精华评测文章"
+  },
+  "growthlifthub.com": {
+    "source_type": "文章",
+    "media": "Growth Lift Hub",
+    "note": "英文博客站点，非中文媒体，无法推断出中文名称，遂保留其站点名称"
+  },
+  "shigerubeauty.com": {
+    "source_type": "文章",
+    "media": "Shigeru Beauty",
+    "note": "品牌官网博客文章"
+  },
+  "thelashlist.com": {
+    "source_type": "文章",
+    "media": "睫毛清单",
+    "note": "英文美妆评测博客，域名 thelashlist 直译为睫毛清单"
+  },
+  "www.shape.com": {
+    "source_type": "文章",
+    "media": "Shape杂志",
+    "note": "shape.com为美国Shape杂志官网，提供生活方式类文章"
+  },
+  "www.prevention.com": {
+    "source_type": "文章",
+    "media": "Prevention杂志",
+    "note": "美国健康杂志Prevention的文章"
+  },
+  "amr.baoji.gov.cn": {
+    "source_type": "文章",
+    "media": "宝鸡市市场监督管理局",
+    "note": "政府网站发布的消费警示文章，来源为宝鸡市市场监督管理局官网",
+    "had_content_text": true
+  },
+  "sykp.hebei.com.cn": {
+    "source_type": "文章",
+    "media": "河北新闻网",
+    "note": "域名 hebei.com.cn 为河北新闻网，sykp 子站为其食品药品科普频道，页面为文章。"
+  },
+  "www.medsci.cn": {
+    "source_type": "文章",
+    "media": "梅斯医学",
+    "note": "医学专业媒体平台MedSci（梅斯医学）的文章"
+  },
+  "keracolorhair.com": {
+    "source_type": "文章",
+    "media": "Keracolor官网",
+    "note": "品牌官方护发指南页面，属于教程文章"
+  },
+  "neocosmedics.com": {
+    "source_type": "商品页",
+    "media": "独立商城",
+    "note": "该网站为销售眉毛增长精华的小型独立电商店铺，无公开媒体品牌，故标记为独立商城"
+  },
+  "girlstyle.com": {
+    "source_type": "文章",
+    "media": "GirlStyle 马来西亚女生日常",
+    "note": "网站名称为“GirlStyle 马来西亚女生日常”，是一篇美容护肤类文章，故归类为文章，来源为网站名称。",
+    "had_content_text": true
+  },
+  "www.sinsnlashes.com": {
+    "source_type": "文章",
+    "media": "Sins 'n Lashes 官方博客",
+    "note": "该页面为化妆品品牌官网发布的博客文章"
+  },
+  "bijin.plus": {
+    "source_type": "文章",
+    "media": "美人プラス",
+    "note": "以日文BIJIN＋括号中文名美人プラス命名的美容资讯博客，发布美妆产品评测文章",
+    "had_content_text": true
+  },
+  "myrals.com": {
+    "source_type": "文章",
+    "media": "MYRALS官网",
+    "note": "日本化妆品品牌MYRALS官方网站，页面为产品评测文章"
+  },
+  "mdpi-res.com": {
+    "source_type": "文章",
+    "media": "MDPI 学术期刊",
+    "note": "论文PDF链接来自MDPI出版社的学术资源域，标题为研究文章。"
+  },
+  "my-best.com": {
+    "source_type": "文章",
+    "media": "MyBest（日本）",
+    "note": "日本商品评测排名网站，文章为推荐排行"
+  },
+  "goods.taobao.com": {
+    "source_type": "商品页",
+    "media": "淘宝好物网",
+    "note": "页面标题和站点名称均为“淘宝好物网”，展示具体商品（染发剂），属于商品页"
+  },
+  "www.mm111.net": {
+    "source_type": "文章",
+    "media": "茂名网",
+    "note": "域名mm111.net是广东茂名市官方新闻门户茂名网，页面为染发剂推荐文章，故识别为文章，媒体为茂名网。"
+  },
+  "m.ftxiacdn.com": {
+    "source_type": "商品页",
+    "media": "独立商城",
+    "note": "域名无明确媒体平台标识，标题为品牌产品推广，属小型电商商品页"
+  },
+  "g.fh21.com.cn": {
+    "source_type": "文章",
+    "media": "复禾健康",
+    "note": "复禾健康专家文章页面"
+  },
+  "qx.tynews.com.cn": {
+    "source_type": "文章",
+    "media": "太原新闻网",
+    "note": "域名 tynews.com.cn 为太原新闻网，页面为科普文章"
+  },
+  "yjj.gxzf.gov.cn": {
+    "source_type": "文章",
+    "media": "广西壮族自治区药品监督管理局",
+    "note": "政府机构官网发布的化妆品科普文章"
+  },
+  "douyin_spu_knowledge": {
+    "source_type": "商品页",
+    "media": "抖音",
+    "note": "域名 douyin_spu_knowledge 为抖音商品知识库，页面显示美白修护面霜产品信息，应属抖音平台商品页"
+  },
+  "mjbk.familydoctor.com.cn": {
+    "source_type": "文章",
+    "media": "家庭医生在线",
+    "note": "页面来自家庭医生在线旗下栏目，属于健康资讯文章"
+  },
+  "www.chando-himalaya.com": {
+    "source_type": "文章",
+    "media": "自然堂博客",
+    "note": "自然堂官方博客文章页"
+  },
+  "m.suning.com": {
+    "source_type": "商品页",
+    "media": "苏宁易购",
+    "note": "苏宁易购商品详情页"
+  },
+  "www.vogue.com.cn": {
+    "source_type": "文章",
+    "media": "VOGUE中国",
+    "note": "VOGUE中文版时尚杂志网站的美容文章"
+  },
+  "www.jd.com": {
+    "source_type": "商品页",
+    "media": "京东商城",
+    "note": "京东商城商品页面"
+  },
+  "sd.ifeng.com": {
+    "source_type": "文章",
+    "media": "凤凰网",
+    "note": "凤凰网山东频道发布的实测类文章"
+  },
+  "www.halodoc.com": {
+    "source_type": "文章",
+    "media": "Halodoc健康平台",
+    "note": "印尼健康资讯平台，页面为文章"
+  },
+  "m.jiemian.com": {
+    "source_type": "文章",
+    "media": "界面新闻",
+    "note": "界面新闻官方发布的文章"
+  },
+  "www.bkmedia.cn": {
+    "source_type": "文章",
+    "media": "北京科技报",
+    "note": "页面标题末尾标注‘-北京科技报’，内容为洗发水评测文章，属于科技报刊文章"
+  },
+  "www.cnjjwb.com": {
+    "source_type": "文章",
+    "media": "经济晚报",
+    "note": "页面来自经济晚报网，是一篇洗发水测评文章，媒体为经济晚报"
+  },
+  "www.loreal-paris.com.hk": {
+    "source_type": "商品页",
+    "media": "巴黎歐萊雅香港官網",
+    "note": "欧莱雅香港官网产品页面"
+  },
+  "www.hgdaily.com.cn": {
+    "source_type": "文章",
+    "media": "黄冈新闻网",
+    "note": "黄冈新闻网为地方新闻媒体，页面为祛痘产品推荐文章，属于文章类内容。"
+  },
+  "www.familydoctor.cn": {
+    "source_type": "文章",
+    "media": "家医大健康",
+    "note": "网站页面站点名称为“家医大健康”，属于健康科普类文章媒体"
+  },
+  "www.popbela.com": {
+    "source_type": "文章",
+    "media": "波普贝拉",
+    "note": "印尼时尚美容网站，音译自 Popbela"
+  },
+  "health.ntuh.gov.tw": {
+    "source_type": "文章",
+    "media": "臺大醫院",
+    "note": "臺大醫院健康電子報中的美白藥品介紹文章"
+  },
+  "news.qq.com": {
+    "source_type": "文章",
+    "media": "腾讯新闻",
+    "note": "页面来自腾讯新闻官网，标题含测评推荐但 og type 为 news，属于新闻资讯类文章"
+  },
+  "m.dayi.org.cn": {
+    "source_type": "文章",
+    "media": "中国医药信息查询平台",
+    "note": "页面为药品说明书式信息页，网站名称为“中国医药信息查询平台”，属于医药信息查询服务"
+  },
+  "www.dayi.org.cn": {
+    "source_type": "文章",
+    "media": "中国医药信息查询平台",
+    "note": "药品信息查询页面，来源为中国医药信息查询平台"
+  },
+  "zxbwx.ccn.com.cn": {
+    "source_type": "文章",
+    "media": "中国消费者报",
+    "note": "页面标题为中国消费者报，文章页"
+  },
+  "www.selsunblue.com": {
+    "source_type": "商品页",
+    "media": "Selsun Blue 官方商城",
+    "note": "品牌官网产品页面，展示去屑洗发水商品"
+  },
+  "www.120ask.com": {
+    "source_type": "文章",
+    "media": "快速问医生",
+    "note": "该页面为快速问医生网站的医疗问答页面，属于文章类内容"
+  },
+  "tw.my-best.com": {
+    "source_type": "文章",
+    "media": "mybest 好物推薦",
+    "note": "台灣 mybest 為商品評測推薦網站，本頁為設計師監製的男用定型噴霧排行榜文章"
+  },
+  "www.marieclaire.com.tw": {
+    "source_type": "文章",
+    "media": "美麗佳人",
+    "note": "台湾时尚杂志《Marie Claire 美麗佳人》官网发型造型文章"
+  },
+  "www.3mofajang.com": {
+    "source_type": "文章",
+    "media": "三个魔发匠官网",
+    "note": "页面为品牌官网发布的洗发水推荐文章，域名对应品牌中文名"
+  },
+  "m.ctrip.com": {
+    "source_type": "文章",
+    "media": "携程",
+    "note": "页面为携程社区旅行笔记，内容为攻略文章"
+  },
+  "www.elle.com": {
+    "source_type": "文章",
+    "media": "ELLE 世界时装之苑",
+    "note": "知名时尚杂志《ELLE》官方网站文章"
+  },
+  "yp.120ask.com": {
+    "source_type": "文章",
+    "media": "快速问医生",
+    "note": "快速问医生网站药品频道发布的用药资讯文章"
+  },
+  "www.3s-md.com": {
+    "source_type": "文章",
+    "media": "三生蔓迪官网",
+    "note": "页面标题与站点名称均显示为‘三生蔓迪官网’，属于品牌官网发布的文章"
+  },
+  "chinamedicalnewss.cn": {
+    "source_type": "文章",
+    "media": "中国医疗新闻网",
+    "note": "网站自称中国医疗新闻网，发布健康资讯及产品推荐文章",
+    "had_content_text": true
+  },
+  "augustinusbader.com": {
+    "source_type": "商品页",
+    "media": "奥古斯汀·巴德官网",
+    "note": "品牌官方商城，页面为商品详情页",
+    "had_content_text": true
+  },
+  "www.gloshospitals.nhs.uk": {
+    "source_type": "文章",
+    "media": "格洛斯特郡医院（英国国家医疗服务体系NHS）",
+    "note": "英国NHS下属格洛斯特郡医院的患者用药说明文档"
+  },
+  "mdg.chinapp.com": {
+    "source_type": "文章",
+    "media": "品牌网",
+    "note": "页面为品牌网的面霜排行榜单，属于文章类内容"
+  },
+  "m.gmw.cn": {
+    "source_type": "文章",
+    "media": "光明网",
+    "note": "光明网移动端文章"
+  },
+  "www.cnblogs.com": {
+    "source_type": "文章",
+    "media": "博客园",
+    "note": "博客园企业博客栏目下的测评文章，博客园是知名中文技术社区"
+  },
+  "marmurmedical.com": {
+    "source_type": "其他",
+    "media": "玛摩医学",
+    "note": "域名为 marmurmedical.com，标题显示为 Bot 验证页，非具体内容页，推断为皮肤科诊所官网，媒体取近似中文名。"
+  },
+  "wap.qdxw.com.cn": {
+    "source_type": "文章",
+    "media": "青岛新闻网",
+    "note": "域名 qdxw 为青岛新闻网的缩写，页面为移动端资讯文章，内容为防脱精华液效果解析"
+  },
+  "api.arttechpress.com": {
+    "source_type": "文章",
+    "media": "艺术科技出版社",
+    "note": "域名为 arttechpress，推测为艺术科技出版社，页面为 PDF 研究文章，故归类为文章。"
+  },
+  "www.huizhou.cn": {
+    "source_type": "文章",
+    "media": "惠州新闻网",
+    "note": "惠州新闻网为广东省惠州市官方新闻门户，文章属于其本地新闻内容。"
+  },
+  "m.ahsz.tv": {
+    "source_type": "文章",
+    "media": "宿州广播电视台",
+    "note": "安徽宿州广播电视台官网移动端文章页，内容为洗发水推广"
+  },
+  "eyebrowgrowthguide.com": {
+    "source_type": "文章",
+    "media": "眉毛生长指南",
+    "note": "网站名称为Eyebrow Growth Guide，内容为文章类资讯，故译为中文媒体名"
+  },
+  "www.womenshealthmag.com": {
+    "source_type": "文章",
+    "media": "《Women's Health》杂志",
+    "note": "美国女性健康杂志网站文章，内容为眉毛护理指南"
+  },
+  "b-after.co.jp": {
+    "source_type": "文章",
+    "media": "B＜AFTER SALON（日本眉睫沙龙）",
+    "note": "该页面为日本眉睫沙龙 B＜AFTER SALON 的美容专栏文章",
+    "had_content_text": true
+  },
+  "trinsic.com": {
+    "source_type": "商品页",
+    "media": "Trinsic品牌官网",
+    "note": "英国美妆品牌独立站，产品页"
+  },
+  "zxb.ccn.com.cn": {
+    "source_type": "文章",
+    "media": "中国消费者报",
+    "note": "域名 subdomain 为 ccn.com.cn，页面标题明确为中国消费者报"
+  },
+  "toplash.com": {
+    "source_type": "文章",
+    "media": "Toplash官网",
+    "note": "该页面为化妆品品牌Toplash官网上发布的博客文章，属于品牌自营内容，无第三方媒体平台特征，故媒体记为官网。"
+  },
+  "hn.cnr.cn": {
+    "source_type": "文章",
+    "media": "央广网",
+    "note": "hn.cnr.cn 为央广网河南频道，页面为文章内容"
+  },
+  "mip.mfk.com": {
+    "source_type": "文章",
+    "media": "民福康",
+    "note": "页面为民福康健康资讯文章，标题和站点名称均标明民福康，内容为文字文章。"
+  },
+  "m.fh21.com.cn": {
+    "source_type": "文章",
+    "media": "复禾疾病百科",
+    "note": "复禾健康旗下的医学科普平台，提供疾病百科文章"
+  },
+  "www.citystgeorges.ac.uk": {
+    "source_type": "文章",
+    "media": "伦敦大学城市圣乔治学院",
+    "note": "英国高校新闻页面，域名对应伦敦大学城市圣乔治学院官网"
+  },
+  "www.fimela.com": {
+    "source_type": "文章",
+    "media": "Fimela女性网",
+    "note": "印尼女性生活门户网站"
+  },
+  "m.maigoo.com": {
+    "source_type": "商品页",
+    "media": "买购APP",
+    "note": "买购APP提供的身体乳网店产品排行榜，属于商品列表/选购页面"
+  },
+  "www.beauty321.com": {
+    "source_type": "文章",
+    "media": "beauty美人圈",
+    "note": "beauty美人圈为美妆生活资讯网站，此页面为身体乳推荐文章"
+  },
+  "www.marieclaire.ru": {
+    "source_type": "文章",
+    "media": "嘉人",
+    "note": "俄罗斯版嘉人杂志，国际时尚媒体"
+  },
+  "www.fjgznews.cn": {
+    "source_type": "文章",
+    "media": "光泽新闻网",
+    "note": "地方新闻网站，页面为洗发水防脱效果分析文章"
+  },
+  "www.nexxus.com": {
+    "source_type": "商品页",
+    "media": "Nexxus官网",
+    "note": "Nexxus品牌官方产品页面"
+  },
+  "hairingcaring.com": {
+    "source_type": "文章",
+    "media": "护发关爱网",
+    "note": "英文护发文章网站，无国内媒体品牌，根据域名含义（hairing caring）意译为护发关爱网"
+  },
+  "www.ly-rm.cn": {
+    "source_type": "文章",
+    "media": "耒阳新闻网",
+    "note": "页面来自耒阳新闻网，标题为推荐文章内容，符合文章类型"
+  },
+  "hellosehat.com": {
+    "source_type": "文章",
+    "media": "Hello Sehat",
+    "note": "印尼健康资讯网站，文章页面"
+  },
+  "www.supralash.es": {
+    "source_type": "其他",
+    "media": "Supralash独立商城",
+    "note": "独立品牌电商网站，页面为首页，无具体商品信息，故归为其他"
+  },
+  "lindalia.com": {
+    "source_type": "文章",
+    "media": "Lindalia官网",
+    "note": "Lindalia品牌官方博客，文章页面，无中文媒体名称，以官网呈现。"
+  },
+  "www.voguescandinavia.com": {
+    "source_type": "文章",
+    "media": "Vogue Scandinavia（《Vogue》斯堪的纳维亚版）",
+    "note": "Vogue Scandinavia 是《Vogue》杂志的北欧版，该页面为文章。"
+  },
+  "trybello.com": {
+    "source_type": "文章",
+    "media": "Trybello官网",
+    "note": "Trybello品牌官方博客的商品比较文章"
+  },
+  "www.nmpa.gov.cn": {
+    "source_type": "文章",
+    "media": "国家药品监督管理局",
+    "note": "根据域名nmpa.gov.cn推断为国家药品监督管理局官网，文章为科普警示内容"
+  },
+  "www.abbvie.ca": {
+    "source_type": "文章",
+    "media": "艾伯维",
+    "note": "艾伯维加拿大官网发布的药品说明书PDF"
+  },
+  "www.abbvie.com.br": {
+    "source_type": "其他",
+    "media": "艾伯维",
+    "note": "PDF药品说明书，来自艾伯维巴西官网"
+  },
+  "allergan-web-cdn-prod.azureedge.net": {
+    "source_type": "其他",
+    "media": "艾尔建",
+    "note": "PDF产品专论，来自艾尔建公司"
+  },
+  "bestbeautytrends.org": {
+    "source_type": "文章",
+    "media": "最佳美容趋势",
+    "note": "英文美容评测博客，站名为“bestbeautytrends”，直译为“最佳美容趋势”"
+  },
+  "qjwb.tidenews.com.cn": {
+    "source_type": "文章",
+    "media": "钱江晚报",
+    "note": "该PDF为钱江晚报数字报的健康版面，属于新闻文章。"
+  },
+  "www.giftsoka.com": {
+    "source_type": "文章",
+    "media": "Giftsoka博客",
+    "note": "英文博客站点，无对应中文媒体名称，采用站点名结合'博客'作为可读标识"
+  },
+  "www.nourishbrow.com": {
+    "source_type": "商品页",
+    "media": "NourishBrow品牌商城",
+    "note": "独立品牌电商网站，销售眉毛护理产品，无中文媒体名称"
+  },
+  "dermondemand.com": {
+    "source_type": "文章",
+    "media": "DermOnDemand护肤博客",
+    "note": "英文护肤博客，无中文品牌名，取网站名直译"
+  },
+  "minoxidilnextgen.com": {
+    "source_type": "商品页",
+    "media": "NextGen 官方商城",
+    "note": "独立品牌电商网站，站点名为NEXTGEN / SITIO OFICIAL，销售米诺地尔产品"
+  },
+  "alteregoretreat.com": {
+    "source_type": "文章",
+    "media": "Alter Ego Retreat官网",
+    "note": "英文博客文章，网站为Alter Ego Retreat官方站点，提供美容护肤相关内容，非中文媒体，取网站名称作为媒体标示"
+  },
+  "www.xnnews.com.cn": {
+    "source_type": "文章",
+    "media": "咸宁网",
+    "note": "咸宁网地方新闻网站发布的评测文章"
+  },
+  "fablstyle.com": {
+    "source_type": "文章",
+    "media": "FAB L'Style",
+    "note": "英文时尚博客文章，网站名为FAB L'Style，无中文品牌名"
+  },
+  "web.kao.com": {
+    "source_type": "商品页",
+    "media": "花王",
+    "note": "花王旗下Liese品牌泡泡染发剂官方产品页，属商品介绍页面"
+  },
+  "www.skynfuture.com": {
+    "source_type": "商品页",
+    "media": "肌肤未来",
+    "note": "品牌名称为“肌肤未来”，页面是其官方商城的产品详情页"
+  },
+  "www.hbn.com.tw": {
+    "source_type": "文章",
+    "media": "HBN官网",
+    "note": "页面为HBN品牌官网发布的文章，解析美白产品"
+  },
+  "www.thedermdetective.com": {
+    "source_type": "文章",
+    "media": "皮肤侦探",
+    "note": "英文护肤博客“皮肤侦探”的博文页面，因触发机器人验证而显示验证页面，实际内容为沐浴油推荐文章。"
+  },
+  "www.schwarzkopf-professional.com": {
+    "source_type": "商品页",
+    "media": "施华蔻专业",
+    "note": "施华蔻专业美发品牌官网的产品页面"
+  },
+  "www.revlonprofessional.com": {
+    "source_type": "商品页",
+    "media": "露华浓专业官网",
+    "note": "页面为露华浓专业美发产品介绍，属于品牌官方商品页面"
+  },
+  "www.oprahdaily.com": {
+    "source_type": "文章",
+    "media": "奥普拉杂志",
+    "note": "奥普拉·温弗瑞旗下的数字杂志，该页面为美容类文章"
+  },
+  "www.wellnessdigest.com": {
+    "source_type": "文章",
+    "media": "健康文摘",
+    "note": "英文健康博客网站文章"
+  },
+  "www.nativessentials.com": {
+    "source_type": "商品页",
+    "media": "Native Essentials官方商城",
+    "note": "独立品牌官网产品页"
+  },
+  "m.dxy.com": {
+    "source_type": "文章",
+    "media": "丁香园",
+    "note": "域名 dxy.com 为丁香园，是国内知名医学健康资讯平台"
+  },
+  "dailymed-beta.nlm.nih.gov": {
+    "source_type": "文章",
+    "media": "美国国家医学图书馆",
+    "note": "美国官方药品标签数据库，提供处方药信息",
+    "had_content_text": true
+  },
+  "koreancosmetic.eu": {
+    "source_type": "文章",
+    "media": "韩国化妆品博客",
+    "note": "该网站是一个韩国化妆品评测博客，域名含义明确，无知名媒体品牌，故替代表述为中文名称。"
+  },
+  "www.lashpalace.com": {
+    "source_type": "商品页",
+    "media": "品牌商城",
+    "note": "小型独立英文品牌商城，无公众媒体品牌，使用通用标签品牌商城"
+  },
+  "poshmark.com": {
+    "source_type": "商品页",
+    "media": "Poshmark 时尚二手平台",
+    "note": "美国二手时尚交易平台，页面上售美容精华，属于电商商品页"
+  },
+  "lfnews.cn": {
+    "source_type": "文章",
+    "media": "廊坊新闻网",
+    "note": "页面标题明确标注为“廊坊新闻网 - 权威媒体 廊坊门户”，属于地方新闻媒体发布的消费类文章。"
+  },
+  "jining.dzwww.com": {
+    "source_type": "文章",
+    "media": "大众网",
+    "note": "页面为大众网济宁频道（jining.dzwww.com）发布的产业市场类推广文章，属于新闻资讯网站"
+  },
+  "uk.my-best.com": {
+    "source_type": "文章",
+    "media": "MyBest 英国评测网",
+    "note": "英国站产品测评文章，站点名称为mybest"
+  },
+  "mobile-phone.taobao.com": {
+    "source_type": "商品页",
+    "media": "淘宝",
+    "note": "淘宝网商品列表页面，标题显示专业染发剂促销与品牌"
+  },
+  "www.sallybeauty.com": {
+    "source_type": "其他",
+    "media": "莎莉美容",
+    "note": "国际美容产品零售商官网，页面为产品色卡电子书PDF"
+  },
+  "www.the-independent.com": {
+    "source_type": "文章",
+    "media": "英国独立报",
+    "note": "英国独立报网站的文章，内容为眉毛精华推荐"
+  },
+  "www.alodokter.com": {
+    "source_type": "文章",
+    "media": "Alodokter健康信息网",
+    "note": "印尼医疗健康文章网站"
+  },
+  "wjw.beijing.gov.cn": {
+    "source_type": "文章",
+    "media": "北京市卫生健康委员会",
+    "note": "北京市卫生健康委员会官网发布的科普文章"
+  },
+  "www.cosrx.com": {
+    "source_type": "商品页",
+    "media": "COSRX官方商城",
+    "note": "COSRX品牌官方直营商品页面，页面类型为产品详情页"
+  },
+  "www.finetoday.cn": {
+    "source_type": "文章",
+    "media": "菲婷丝官网",
+    "note": "菲婷丝（FineToday）中国官网发布的丝蓓绮产品焕新新闻稿，内容为品牌动态，属文章类。"
+  },
+  "m.120ask.com": {
+    "source_type": "文章",
+    "media": "快速问医生",
+    "note": "标题和站点名显示为快速问医生旗下的用药资讯栏目"
+  },
+  "www.consumer.gov.mo": {
+    "source_type": "文章",
+    "media": "澳门消费者委员会",
+    "note": "域名 consumer.gov.mo 为澳门特别行政区政府消费者委员会官网，页面为 PDF 格式的消费提示文章。"
+  },
+  "www.ruminae.com": {
+    "source_type": "文章",
+    "media": "Ruminae官网",
+    "note": "该页面为Ruminae品牌官网的博客文章，讨论睫毛生长成分"
+  },
+  "gialash.com": {
+    "source_type": "商品页",
+    "media": "独立商城",
+    "note": "英文品牌独立站商品页面，无中文媒体名称"
+  },
+  "arch.hnu.edu.cn": {
+    "source_type": "文章",
+    "media": "湖南大学建筑学院",
+    "note": "域名arch.hnu.edu.cn为湖南大学建筑学院官网，页面为学院党建培训新闻"
+  },
+  "cs.whu.edu.cn": {
+    "source_type": "文章",
+    "media": "武汉大学计算机学院",
+    "note": "该页面为武汉大学计算机学院官网发布的学院新闻，属于高校官方机构发布的内容。",
+    "had_content_text": true
+  },
+  "jt.baojidj.gov.cn": {
+    "source_type": "文章",
+    "media": "金台区党建网",
+    "note": "页面为金台区党建网（金台区党建官方网站）发布的党员发展对象培训心得体会，属于党建文章。"
+  },
+  "sis.uibe.edu.cn": {
+    "source_type": "文章",
+    "media": "对外经济贸易大学英语学院",
+    "note": "大学二级学院官网，页面标题为学院名称，新闻栏目"
+  },
+  "www.gongwenyizhan.com": {
+    "source_type": "文章",
+    "media": "公文驿站",
+    "note": "网站名称为公文驿站，内容为公文资料，属于文章类网站"
+  },
+  "www.shsmu.edu.cn": {
+    "source_type": "文章",
+    "media": "上海交通大学医学院新闻网",
+    "note": "上海交通大学医学院新闻网发布的培训新闻"
+  },
+  "www.swpu.edu.cn": {
+    "source_type": "文章",
+    "media": "西南石油大学官网",
+    "note": "页面为西南石油大学党委组织部发布的党校实践教学新闻，属于高校官方网站文章。"
+  },
+  "www.yuznu.edu.cn": {
+    "source_type": "文章",
+    "media": "豫章师范学院",
+    "note": "该页面来自豫章师范学院党委组织部网站，发布单位为豫章师范学院，属于高校官方文章发布平台。"
+  },
+  "www.elle.pl": {
+    "source_type": "文章",
+    "media": "ELLE波兰",
+    "note": "波兰时尚杂志ELLE网站的文章"
+  },
+  "www.nbcnews.com": {
+    "source_type": "文章",
+    "media": "NBC新闻",
+    "note": "美国主流新闻媒体，文章页面"
+  },
+  "m.yaozs.com": {
+    "source_type": "文章",
+    "media": "东方医药网",
+    "note": "页面为东方医药网的资讯文章，推荐祛痘产品，属于文章类型"
+  },
+  "www.usjapanfam.com": {
+    "source_type": "文章",
+    "media": "美日家庭博客",
+    "note": "该页面为博客文章，网站名为US Japan Fam，内容为美日家庭生活相关主题，故以中文描述为美日家庭博客。"
+  },
+  "new-beauty.hk": {
+    "source_type": "文章",
+    "media": "New Beauty",
+    "note": "页面为香港美容中心New Beauty的博客文章，提供防脱生发精华推荐指南"
+  },
+  "hairgenetix.com": {
+    "source_type": "商品页",
+    "media": "Hairgenetix 品牌商城",
+    "note": "该页面为品牌 Hairgenetix 官网的产品成分介绍页，属于商品辅助页面，品牌本身无知名中文媒体名，故以品牌名+商城标注。"
+  },
+  "www.gztaikang.com.cn": {
+    "source_type": "文章",
+    "media": "广州泰康日用化工有限公司",
+    "note": "公司官网新闻页面"
+  },
+  "www.bilibili.com": {
+    "source_type": "文章",
+    "media": "哔哩哔哩",
+    "note": "哔哩哔哩专栏文章，标题为测评内容，属于图文文章"
+  },
+  "www.hellolovelyliving.com": {
+    "source_type": "文章",
+    "media": "Hello Lovely Living",
+    "note": "英文生活博客，文章页面，无中文媒体名称"
+  },
+  "www.nuskin.com": {
+    "source_type": "其他",
+    "media": "如新",
+    "note": "如新（Nuskin）官方品牌网站，页面为产品随附的 PDF 文档，非文章、视频或商品页。"
+  },
+  "id.loccitane.com": {
+    "source_type": "文章",
+    "media": "欧舒丹",
+    "note": "欧舒丹印尼官网博客文章，品牌中文名为欧舒丹"
+  },
+  "www.aromatherapyassociates.com": {
+    "source_type": "商品页",
+    "media": "雅容玛香薰之家",
+    "note": "英国香薰品牌Aromatherapy Associates官方商城产品页"
+  },
+  "www.skincarisma.com": {
+    "source_type": "商品页",
+    "media": "独立商城",
+    "note": "Skincarisma为小众护肤品牌独立电商网站，无中文公开媒体名称，判定为独立商城产品页"
+  },
+  "nb.ifeng.com": {
+    "source_type": "文章",
+    "media": "凤凰网",
+    "note": "凤凰网地方频道发布的测评文章"
+  },
+  "mobile.lyd.com.cn": {
+    "source_type": "文章",
+    "media": "洛阳网",
+    "note": "洛阳网（lyd.com.cn）是洛阳日报社旗下新闻门户，该页面为洗发水推广软文，属于文章类。"
+  },
+  "collestacream.com": {
+    "source_type": "商品页",
+    "media": "品牌商城",
+    "note": "英语独立品牌商城，无中文媒体名，使用“品牌商城”",
+    "had_content_text": false
+  },
+  "thetruthbeautycompany.com": {
+    "source_type": "商品页",
+    "media": "品牌商城",
+    "note": "该网站为英文美妆品牌独立商城，无中文品牌名，按规则归类为品牌商城"
+  },
+  "positivity.org": {
+    "source_type": "文章",
+    "media": "Positivity博客",
+    "note": "英文自我发展类博客，非中国媒体，取站点名称为媒体标识"
+  },
+  "360xh.com": {
+    "source_type": "文章",
+    "media": "360化妆品网",
+    "note": "页面为360化妆品网的商业资讯文章"
+  },
+  "www.mentholatum.com.tw": {
+    "source_type": "文章",
+    "media": "曼秀雷敦官方網站",
+    "note": "曼秀雷敦台湾官网的新闻页面，属于品牌官方发布的文章内容"
+  },
+  "www.zsnews.cn": {
+    "source_type": "文章",
+    "media": "中山网",
+    "note": "域名 zsnews.cn 为中山网，是中山日报社旗下的地方新闻门户网站"
+  },
+  "www.consumer.org.hk": {
+    "source_type": "文章",
+    "media": "消費者委員會",
+    "note": "香港消費者委員會發佈的潤手霜測試報告"
+  },
+  "www.today.com": {
+    "source_type": "文章",
+    "media": "今日秀",
+    "note": "TODAY.com为美国NBC电视台《今日秀》节目官网，样本为购物推荐文章"
+  },
+  "attarbazar.com": {
+    "source_type": "文章",
+    "media": "香水集市",
+    "note": "域名 attarbazar 意为香水集市，页面为产品评测文章，站点名称 AttarBazar 可译为香水集市"
+  },
+  "qxb-img-osscache.qixin.com": {
+    "source_type": "其他",
+    "media": "企信网",
+    "note": "企信网上的专利PDF文档，属于其他类型"
+  },
+  "clothing.taobao.com": {
+    "source_type": "文章",
+    "media": "淘宝",
+    "note": "该页面为淘宝服装网下的选购指南文章",
+    "had_content_text": false
+  },
+  "www.dingzhoudaily.com": {
+    "source_type": "文章",
+    "media": "定州新闻网",
+    "note": "页面标题含“定州新闻网”，域名为 dingzhoudaily.com，属于地方新闻网站发布的科普文章，归类为文章，媒体命名为定州新闻网。"
+  },
+  "www.e0734.com": {
+    "source_type": "文章",
+    "media": "中国衡阳新闻网",
+    "note": "页面标题和站点名称均显示为中国衡阳新闻网，属于地方新闻网站发布的文章。"
+  },
+  "cdn.mdedge.com": {
+    "source_type": "文章",
+    "media": "MDedge医学新闻",
+    "note": "该域名为医学专业媒体MDedge，PDF为学术综述文章，故归类为文章。",
+    "had_content_text": false
+  }
+}

@@ -1,0 +1,105 @@
+# Secrets and authenticated sessions
+/config/doubao_api_keys.env
+/config/remote_worker.env
+/vps_config.txt
+**/.env
+/deploy/server/server.env
+/deploy/hybrid/server.env
+**/*cookie*
+**/*session*
+**/*credential*
+**/*token*.json
+
+# Browser profiles and runtime state
+runtime/
+**/chrome_profile*/
+**/chrome_profiles/
+**/user_data/
+doubao_pending_saves/
+
+# Machine-local collected data (historical examples live in sample_data/)
+/doubao_refs_result.csv
+/doubao_products_result.csv
+/doubao_answers_result.csv
+/doubao_capture_skips.csv
+/doubao_capture_runtime_errors.csv
+/doubao_source_ai_cache.json
+/doubao_product_ai_cache.json
+/doubao_product_ai_retry_state.json
+/doubao_source_ai_retry_state.json
+/doubao_source_cache.json
+/doubao_brand_ai_cache.json
+/doubao_source_content_index.json
+/doubao_source_content_index*.json
+/doubao_source_content.db
+/doubao_run_counter.txt
+/yuanbao_monitor/dashboard/public/data/dashboard.json
+/yuanbao_monitor/dashboard/.next/
+/yuanbao_monitor/dashboard/dist/
+/yuanbao_monitor/dashboard/.wrangler/
+*.tsbuildinfo
+
+# Generated deploy bundles and dependency trees
+node_modules/
+__pycache__/
+*.py[cod]
+
+# Logs, temporary state, screenshots and UI dumps
+*.log
+*.err
+*.out
+*.tmp
+*.pid
+/*.png
+/*.xml
+
+# Historical and repair backups
+data_cleanup_backups/
+deleted_scrape_backup_*/
+doubao_source_capture_source_backup_*/
+doubao_source_capture_source_backup_*.zip
+doubao_source_capture_source_backup_*.rar
+*.bak
+*.bak_*
+*.bak.*
+*.before_*
+*.before-*
+
+# Unrelated experiments kept on the development machine
+deepseek_db_dump/
+deepseek*
+*deepseek*
+!deepseek_monitor/
+!deepseek_monitor/**
+!model_plugins/
+!model_plugins/*/
+!model_plugins/*/plugin.py
+image_pro/
+outputs/
+reports/
+bing_smzdm.html
+
+# Local diagnostics and scratch scripts
+/_audit_*
+/_check_*
+/_tmp_*
+/tmp_*
+/*_test.py
+/unicode_*test*
+/*_test_state.json
+/*_test_results.jsonl
+/*test*_state.json
+/*test*_results.jsonl
+/*_long_test_state.json
+/*_long_test_results.jsonl
+doubao_web_dom_snapshot.json
+doubao_api_check.json
+
+# SQLite transient files and worker locks
+*.db-shm
+*.db-wal
+*.lock
+
+# Local office/export artifacts
+~$*
+*.xlsx

@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: monitor
+      POSTGRES_USER: monitor
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Asia/Shanghai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U monitor -d monitor"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build:
+      context: ../..
+      dockerfile: deploy/server/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    shm_size: 2gb
+    environment:
+      TZ: Asia/Shanghai
+      MONITOR_DATABASE_URL: postgresql://monitor:${POSTGRES_PASSWORD}@postgres:5432/monitor
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      ANTHROPIC_BASE_URL: https://api.deepseek.com/anthropic
+      DOUBAO_PRODUCT_AI_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4-flash}
+    volumes:
+      - ../../runtime:/app/runtime
+      - ../../config:/app/config
+    ports:
+      - "3000:3000"
+      - "8765:8765"
+      - "127.0.0.1:6080:6080"
+
+volumes:
+  postgres_data:

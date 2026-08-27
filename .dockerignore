@@ -1,0 +1,15 @@
+runtime/
+config/*.env
+vps_config.txt
+**/__pycache__/
+**/*.pyc
+**/node_modules/
+yuanbao_monitor/dashboard/dist/
+yuanbao_monitor/dashboard/.next/
+.git/
+*.log
+*.xlsx
+sample_data/
+tests/
+tools/
+docs/

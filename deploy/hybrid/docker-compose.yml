@@ -1,0 +1,25 @@
+services:
+  panel:
+    build:
+      context: ../..
+      dockerfile: deploy/hybrid/Dockerfile
+    restart: unless-stopped
+    env_file: server.env
+    environment:
+      TZ: Asia/Shanghai
+      DOUBAO_DASHBOARD_HOST: 0.0.0.0
+      DOUBAO_DASHBOARD_PORT: 8765
+      MONITOR_REMOTE_TASKS_ENABLED: "1"
+      DOUBAO_CONTENT_WORKER_DISABLED: "1"
+      MONITOR_DASHBOARD_WARMUP_DISABLED: "1"
+      MONITOR_RETAIN_GLOBAL_SNAPSHOT: "0"
+      MONITOR_ANALYTICS_MEMORY_CACHE_MAX: "8"
+      MONITOR_HTTP_WORKERS: "16"
+      MONITOR_HTTP_MAX_PENDING: "128"
+    mem_limit: 640m
+    cpus: 1.0
+    volumes:
+      - ./runtime:/app/runtime
+    ports:
+      - "127.0.0.1:8300:3000"
+      - "127.0.0.1:8876:8765"

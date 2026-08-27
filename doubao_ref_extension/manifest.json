@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Doubao Reference Link Extractor",
+  "version": "1.0.0",
+  "description": "Extract titles and hrefs from Doubao reference links on demand.",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.doubao.com/*",
+        "https://doubao.com/*",
+        "https://www.doubao.com/chat/*",
+        "https://www.doubao.com/bot/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
