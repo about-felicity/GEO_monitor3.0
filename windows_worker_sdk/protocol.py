@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import ssl
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -35,7 +36,7 @@ class ServerClient:
             method="POST",
         )
         try:
-            with urlopen(request, timeout=self.timeout, context=ssl.create_default_context()) as response:
+            with urlopen(request, timeout=self.timeout, context=self._ssl_context()) as response:
                 result = json.loads(response.read().decode("utf-8"))
         except HTTPError as exc:
             detail = exc.read().decode("utf-8", "replace")[:1000]
@@ -45,6 +46,17 @@ class ServerClient:
         if not isinstance(result, dict) or result.get("ok") is False:
             raise ServerError(str(result.get("error") if isinstance(result, dict) else result))
         return result
+
+    @staticmethod
+    def _ssl_context() -> ssl.SSLContext:
+        ca_bundle = os.environ.get("GEO_CA_BUNDLE", "").strip()
+        if ca_bundle:
+            return ssl.create_default_context(cafile=ca_bundle)
+        try:
+            import certifi
+        except ImportError:
+            return ssl.create_default_context()
+        return ssl.create_default_context(cafile=certifi.where())
 
     def claim(self, worker_id: str, readiness: dict[str, Any]) -> dict[str, Any]:
         return self.post("/api/worker/claim", {"worker_id": worker_id, "readiness": readiness})
@@ -70,4 +82,3 @@ class ServerClient:
             f"/api/worker/tasks/{task_id}/finish",
             {"lease_token": lease_token, "status": status, "error": str(error)[:1800]},
         )
-

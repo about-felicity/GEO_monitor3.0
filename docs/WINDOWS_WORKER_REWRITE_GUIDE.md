@@ -34,6 +34,9 @@ python -m pip install --upgrade pip
 
 Token、DeepSeek Key 和登录信息不能提交 Git。
 
+若企业代理或 Python 证书仓库导致 TLS 校验失败，把受信任 CA 的 PEM 路径设置为
+`GEO_CA_BUNDLE`，或在虚拟环境安装 `certifi`。禁止用“关闭证书校验”解决。
+
 ## 3. Collector 合同
 
 新模块暴露 `create_collector(model_id)`，返回对象实现：
@@ -97,4 +100,3 @@ data/
 - 24/24 完成，正文、信源、分析完整数均可见；
 - 报告指标可逐轮追溯；
 - Token、Cookie、API Key、profile 和原始数据均未进入 Git。
-
