@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT_ENV = Path(__file__).resolve().parent / "config" / "doubao_api_keys.env"
 ALT_ENV = Path(__file__).resolve().parent / "doubao_api_keys.env"
+DEEPSEEK_SECRET = Path(__file__).resolve().parent / "config" / "deepseek_api_key.secret"
 
 
 _ENV_KEYS = (
@@ -47,6 +48,10 @@ def load_secrets() -> None:
     """Load secrets from the local .env file into os.environ."""
     for path in (ROOT_ENV, ALT_ENV):
         _load_env_file(path)
+    if os.environ.get("DEEPSEEK_API_KEY") is None and DEEPSEEK_SECRET.exists():
+        value = DEEPSEEK_SECRET.read_text(encoding="utf-8-sig").strip()
+        if value:
+            os.environ["DEEPSEEK_API_KEY"] = value
     # DeepSeek exposes an Anthropic-compatible endpoint in this project. Keep
     # the provider-facing name intuitive while preserving existing callers.
     if os.environ.get("DEEPSEEK_API_KEY") and not os.environ.get("ANTHROPIC_API_KEY"):

@@ -7,8 +7,9 @@
   },
   "scripts": {
     "dev": "vinext dev -H 0.0.0.0",
-    "build": "vinext build",
-    "start": "node scripts/patch-vinext-windows.mjs && vinext start",
+    "build": "vinext build && npm run verify:production-assets",
+    "start": "node scripts/patch-vinext-windows.mjs && npm run verify:production-assets && vinext start",
+    "verify:production-assets": "node scripts/verify-production-assets.mjs",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
   },

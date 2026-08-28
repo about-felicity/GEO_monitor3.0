@@ -33,7 +33,7 @@ SITES = {
         "yuanbao", "腾讯元宝", "https://yuanbao.tencent.com/chat/", 9312,
         ("yuanbao.tencent.com", "tencent.com", "qq.com"), COMMON_INPUTS,
         ("#chat-content [class*='agent']", "#chat-content [class*='markdown']", "#chat-content [class*='hyc-content']", "#chat-content [class*='message']"),
-        ("登录后使用", "微信登录", "手机号登录"),
+        ("登录后使用", "微信登录", "手机号登录", "Not logged in", "Log In with WeChat", "Log In"),
     ),
     "wenxin": SiteConfig(
         "wenxin", "文心一言", "https://wenxin.baidu.com/", 9313,

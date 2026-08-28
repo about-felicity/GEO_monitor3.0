@@ -200,13 +200,17 @@ const views: { id: View; label: string; hint: string; symbol: string }[] = [
 ];
 
 function apiBase() {
-  if (typeof window === "undefined") return "http://127.0.0.1:8765";
-  if (window.location.port === "8765") return "";
+  const localApiPort = import.meta.env.VITE_MONITOR_API_PORT || "8765";
+  const configuredBasePath = String(import.meta.env.VITE_MONITOR_BASE_PATH || "")
+    .trim()
+    .replace(/\/$/, "");
+  if (typeof window === "undefined") return `http://127.0.0.1:${localApiPort}`;
+  if (window.location.port === localApiPort) return "";
   if (window.location.port === "3000") {
-    return `${window.location.protocol}//${window.location.hostname}:8765`;
+    return `${window.location.protocol}//${window.location.hostname}:${localApiPort}`;
   }
   // Production Nginx exposes the frontend and /api on one HTTPS origin.
-  return "";
+  return configuredBasePath;
 }
 function fmt(value: number) {
   return new Intl.NumberFormat("zh-CN").format(value || 0);

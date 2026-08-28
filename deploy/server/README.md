@@ -13,32 +13,21 @@ docker compose --env-file server.env up -d --build
 
 面板地址为 `http://服务器IP:3000`，后端为 `http://服务器IP:8765`。
 
-## 元宝首次登录
+## 隐身会话认证
 
-noVNC 只监听服务器本机，先在自己的电脑建立 SSH 隧道：
+五个模型均不持久化浏览器 profile。启动容器时通过进程环境临时传入相应的
+`MONITOR_<模型>_COOKIES_JSON`，变量名和格式见 `web_collectors/README.md`。
+不要把 Cookie 写入 `server.env`。例如可在当前 shell 中 `export` 后执行
+`docker compose`，Compose 会把已声明变量传入容器；shell 结束后及时 `unset`。
 
-```bash
-ssh -L 6080:127.0.0.1:6080 用户名@服务器IP
-```
-
-浏览器打开 `http://127.0.0.1:6080/vnc.html`，随后在服务器执行：
-
-```bash
-cd deploy/server
-docker compose --env-file server.env exec -u monitor app \
-  python -m web_collectors.scrapling_yuanbao --login --timeout 600
-```
-
-在 noVNC 中完成腾讯元宝登录。会话保存在项目的 `runtime/web_profiles/yuanbao_scrapling/`，容器重启后继续复用。
-
-登录状态检查：
+元宝登录状态检查：
 
 ```bash
 docker compose --env-file server.env exec -u monitor app \
   python -m web_collectors.scrapling_yuanbao --check
 ```
 
-之后可在统一面板启动元宝循环任务，也可以直接运行 `python -m web_collectors.loop --model yuanbao ...`。
+之后可在统一面板启动循环任务，也可以直接运行 `python -m web_collectors.loop --model yuanbao ...`。
 
 ## DeepSeek API Key
 

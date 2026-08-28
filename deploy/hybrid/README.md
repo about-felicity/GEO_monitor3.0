@@ -27,20 +27,24 @@ server {
     listen 443 ssl http2;
     server_name panel.example.com;
 
-    location /api/ {
-        proxy_pass http://127.0.0.1:8876;
+    location = /geo {
+        return 301 /geo/;
+    }
+
+    location /geo/api/ {
+        proxy_pass http://127.0.0.1:8876/api/;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-Proto $scheme;
         client_max_body_size 10m;
     }
 
-    location = /tasks {
-        proxy_pass http://127.0.0.1:8876;
+    location = /geo/tasks {
+        proxy_pass http://127.0.0.1:8876/tasks;
         proxy_set_header Host $host;
     }
 
-    location / {
-        proxy_pass http://127.0.0.1:8300;
+    location /geo/ {
+        proxy_pass http://127.0.0.1:8300/;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
@@ -61,8 +65,8 @@ MONITOR_WORKER_ID=office-desktop
 ```
 
 双击 `启动远程任务采集代理.bat`。本机只发起出站 HTTPS 请求，不需要公网
-IP、端口映射或关闭防火墙。五个模型仍使用本机 `runtime/web_profiles/` 中的
-独立登录状态。
+IP、端口映射或关闭防火墙。五个模型的 Cookie 只通过本机 Worker 的进程
+环境临时提供，不保存浏览器 profile。
 
 ## 3. 用户操作
 

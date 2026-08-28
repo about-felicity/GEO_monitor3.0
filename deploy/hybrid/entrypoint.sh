@@ -3,11 +3,19 @@ set -eu
 
 mkdir -p runtime/web_results runtime/logs
 
+(
+  cd yuanbao_monitor/dashboard
+  VITE_MONITOR_BASE_PATH="${MONITOR_BASE_PATH:-/geo}" \
+    node scripts/verify-production-assets.mjs
+)
+
 python3 -u doubao_dashboard_server.py >runtime/logs/dashboard.out.log 2>runtime/logs/dashboard.err.log &
 backend_pid=$!
 
-node yuanbao_monitor/dashboard/node_modules/vinext/dist/cli.js start -H 0.0.0.0 -p 3000 \
-  >runtime/logs/frontend.out.log 2>runtime/logs/frontend.err.log &
+(
+  cd yuanbao_monitor/dashboard
+  node node_modules/vinext/dist/cli.js start -H 0.0.0.0 -p 3000
+) >runtime/logs/frontend.out.log 2>runtime/logs/frontend.err.log &
 frontend_pid=$!
 
 trap 'kill "$backend_pid" "$frontend_pid" 2>/dev/null || true' TERM INT

@@ -55,7 +55,7 @@ class WebModelPlugin(ModelPlugin):
         if not account.get("ok"):
             raise ValueError(account.get("message") or f"{self.name}网页会话不可用")
         if progress:
-            progress(f"{self.name}网页已就绪，正在启动无头采集")
+            progress(f"{self.name}网页已就绪，正在启动隐身无头采集")
 
     def load_questions(self) -> list[str]:
         try:
@@ -96,5 +96,5 @@ class WebModelPlugin(ModelPlugin):
     def metadata(self) -> dict[str, Any]:
         value = super().metadata()
         from web_collectors.config import site_config
-        value.update({"capture_mode": "headless_web", "home_url": site_config(self.id).home_url})
+        value.update({"capture_mode": "incognito_headless_web", "home_url": site_config(self.id).home_url})
         return value

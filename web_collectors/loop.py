@@ -88,14 +88,22 @@ def main() -> int:
         state = {}
     index = max(0, int(state.get("next_index") or 0))
 
+    active_collector: list[object] = []
+
     def stop(*_args) -> None:
         global STOP
         STOP = True
+        if active_collector:
+            try:
+                active_collector[0].close()
+            except Exception:
+                pass
     signal.signal(signal.SIGINT, stop)
     if hasattr(signal, "SIGTERM"):
         signal.signal(signal.SIGTERM, stop)
 
     collector = create_collector(args.model, headless=True)
+    active_collector.append(collector)
     try:
         while not STOP and index < len(schedule):
             question = schedule[index]
@@ -125,7 +133,7 @@ def main() -> int:
                     "capture_label": (
                         "Scrapling 隐身浏览器网页直采"
                         if str(result.get("capture_mode") or "").startswith("scrapling")
-                        else "无头浏览器网页直采"
+                        else "隐身无头浏览器网页直采"
                     ),
                     "body_capture_complete": True,
                     "expected_source_count": int(result.get("expected_source_count") or len(sources)),
@@ -148,6 +156,7 @@ def main() -> int:
                 time.sleep(random.uniform(max(1, args.min_interval), max(args.min_interval, args.max_interval)))
     finally:
         collector.close()
+        active_collector.clear()
     return 0
 
 

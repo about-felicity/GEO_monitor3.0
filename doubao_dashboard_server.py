@@ -94,6 +94,8 @@ RESERVED_MODEL_SLOTS = 1
 
 _CONTROL_LOCK = threading.Lock()
 _CONTROL_PROCESSES = {}
+_DIAGNOSIS_CREATE_LOCK = threading.Lock()
+_DIAGNOSIS_LAST_CREATED = {}
 _ANALYTICS_LOCK = threading.RLock()
 _ANALYTICS_SNAPSHOT_LOCK = threading.Lock()
 _ANALYTICS_CACHE = {}
@@ -7518,6 +7520,10 @@ class HighConcurrencyHTTPServer(ThreadingHTTPServer):
     allow_reuse_address = True
 
     def __init__(self, *args, **kwargs):
+        # ThreadingHTTPServer.__init__ closes a partially constructed server
+        # when bind fails (for example, an occupied port). Keep close safe so
+        # callers see the original bind error instead of a secondary one.
+        self._request_executor = None
         super().__init__(*args, **kwargs)
         cpu_count = os.cpu_count() or 4
         self.max_workers = max(
@@ -7583,7 +7589,9 @@ class HighConcurrencyHTTPServer(ThreadingHTTPServer):
 
     def server_close(self):
         super().server_close()
-        self._request_executor.shutdown(wait=False, cancel_futures=True)
+        executor = getattr(self, "_request_executor", None)
+        if executor is not None:
+            executor.shutdown(wait=False, cancel_futures=True)
 
     def handle_error(self, request, client_address):
         # Rapid filter changes intentionally abort an obsolete browser fetch.
@@ -7645,7 +7653,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if etag:
             self.send_header("ETag", etag)
         origin = self.headers.get("Origin", "")
-        if origin and self.is_allowed_dashboard_origin(origin):
+        if origin and (
+            self.is_allowed_dashboard_origin(origin)
+            or self.is_allowed_browser_extension_origin(origin)
+        ):
             self.send_header("Access-Control-Allow-Origin", origin)
             self.send_header("Access-Control-Expose-Headers", "ETag, X-Monitor-Cache")
         self.send_header("Vary", "Accept-Encoding, Origin")
@@ -7678,6 +7689,17 @@ class DashboardHandler(BaseHTTPRequestHandler):
         except ValueError:
             return False
 
+    @staticmethod
+    def is_allowed_browser_extension_origin(origin):
+        try:
+            parsed = urlparse(origin)
+            return (
+                parsed.scheme == "chrome-extension"
+                and bool(re.fullmatch(r"[a-p]{32}", parsed.hostname or ""))
+            )
+        except ValueError:
+            return False
+
     def send_json(self, payload, status=200):
         self.send_bytes(
             json.dumps(payload, ensure_ascii=False).encode("utf-8"),
@@ -7695,9 +7717,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
         return value
 
     def task_authorized(self):
-        return secure_token_matches(
-            self.headers.get("X-Monitor-Task-Token", ""),
-            configured_token("MONITOR_TASK_API_TOKEN"),
+        provided = self.headers.get("X-Monitor-Task-Token", "")
+        return (
+            secure_token_matches(provided, configured_token("MONITOR_TASK_API_TOKEN"))
+            or secure_token_matches(provided, configured_token("MONITOR_WORKER_TOKEN"))
         )
 
     def worker_authorized(self):
@@ -7741,18 +7764,70 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
         origin = self.headers.get("Origin", "")
-        if origin and not self.is_allowed_dashboard_origin(origin):
+        path = self.path.split("?", 1)[0]
+        extension_worker = (
+            self.is_allowed_browser_extension_origin(origin)
+            and path.startswith("/api/worker/")
+        )
+        if origin and not self.is_allowed_dashboard_origin(origin) and not extension_worker:
             self.send_bytes(b"forbidden", "text/plain; charset=utf-8", 403)
             return
         self.send_bytes(b"", "text/plain; charset=utf-8", 204)
 
     def do_POST(self):
+        path = self.path.split("?", 1)[0]
         origin = self.headers.get("Origin", "")
-        if origin and not self.is_allowed_dashboard_origin(origin):
+        extension_worker = (
+            self.is_allowed_browser_extension_origin(origin)
+            and path.startswith("/api/worker/")
+        )
+        if origin and not self.is_allowed_dashboard_origin(origin) and not extension_worker:
             self.send_json({"ok": False, "error": "forbidden origin"}, 403)
             return
-        path = self.path.split("?", 1)[0]
-        if path == "/api/tasks" or re.fullmatch(r"/api/tasks/[a-f0-9]{32}/cancel", path):
+        if path == "/api/diagnosis":
+            if not self.require_remote_tasks():
+                return
+            try:
+                forwarded = (self.headers.get("X-Forwarded-For") or "").split(",", 1)[0].strip()
+                client_ip = forwarded or str(self.client_address[0] if self.client_address else "unknown")
+                moment = time.monotonic()
+                with _DIAGNOSIS_CREATE_LOCK:
+                    previous = float(_DIAGNOSIS_LAST_CREATED.get(client_ip) or 0)
+                    if moment - previous < 5:
+                        raise ValueError("提交过于频繁，请稍后再试")
+                    report_key, task = REMOTE_TASK_QUEUE.create_public_diagnosis(self.read_json())
+                    _DIAGNOSIS_LAST_CREATED[client_ip] = moment
+                self.send_json({
+                    "ok": True,
+                    "report_key": report_key,
+                    "report_path": f"/geo/{report_key}",
+                    "task": task,
+                }, 201)
+            except (ValueError, TypeError, RuntimeError, json.JSONDecodeError) as exc:
+                self.send_json({"ok": False, "error": str(exc)}, 400)
+            return
+        login_start_match = re.fullmatch(
+            r"/api/logins/(doubao|yuanbao|wenxin)/start", path
+        )
+        if login_start_match:
+            if not self.require_remote_tasks():
+                return
+            if not self.task_authorized():
+                self.send_json({"ok": False, "error": "任务访问密钥无效"}, 401)
+                return
+            try:
+                login = REMOTE_TASK_QUEUE.request_login(login_start_match.group(1))
+                self.send_json({"ok": True, "login": login}, 201)
+            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                self.send_json({"ok": False, "error": str(exc)}, 400)
+            return
+        task_action_match = re.fullmatch(
+            r"/api/tasks/([a-f0-9]{32})/(cancel|pause|resume|rerun|clear|delete)", path
+        )
+        result_delete_match = re.fullmatch(
+            r"/api/tasks/([a-f0-9]{32})/results/([A-Za-z0-9._:-]{1,160})/delete", path
+        )
+        if path in {"/api/tasks", "/api/tasks/cleanup"} or task_action_match or result_delete_match:
             if not self.require_remote_tasks():
                 return
             if not self.task_authorized():
@@ -7761,18 +7836,51 @@ class DashboardHandler(BaseHTTPRequestHandler):
             try:
                 if path == "/api/tasks":
                     task = REMOTE_TASK_QUEUE.create(self.read_json())
-                else:
-                    task_id = path.split("/")[3]
-                    task = REMOTE_TASK_QUEUE.cancel(task_id)
+                    self.send_json({"ok": True, "task": task}, 201)
+                    return
+                if path == "/api/tasks/cleanup":
+                    deleted = REMOTE_TASK_QUEUE.clear_finished(
+                        Path(BASE_DIR) / "runtime" / "web_results"
+                    )
+                    self.send_json({"ok": True, "deleted": deleted})
+                    return
+                if result_delete_match:
+                    task_id, request_id = result_delete_match.groups()
+                    task = REMOTE_TASK_QUEUE.delete_result(
+                        task_id, request_id, Path(BASE_DIR) / "runtime" / "web_results"
+                    )
                     if task is None:
                         self.send_json({"ok": False, "error": "任务不存在"}, 404)
                         return
-                self.send_json({"ok": True, "task": task}, 201 if path == "/api/tasks" else 200)
-            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                    self.send_json({"ok": True, "task": task})
+                    return
+                task_id, action = task_action_match.groups()
+                if action == "cancel":
+                    task = REMOTE_TASK_QUEUE.cancel(task_id)
+                elif action == "pause":
+                    task = REMOTE_TASK_QUEUE.pause(task_id)
+                elif action == "resume":
+                    task = REMOTE_TASK_QUEUE.resume(task_id)
+                elif action == "rerun":
+                    task = REMOTE_TASK_QUEUE.rerun(task_id)
+                elif action == "clear":
+                    task = REMOTE_TASK_QUEUE.clear_results(
+                        task_id, Path(BASE_DIR) / "runtime" / "web_results"
+                    )
+                else:
+                    task = REMOTE_TASK_QUEUE.delete(
+                        task_id, Path(BASE_DIR) / "runtime" / "web_results"
+                    )
+                if task is None:
+                    self.send_json({"ok": False, "error": "任务不存在"}, 404)
+                    return
+                self.send_json({"ok": True, "task": task}, 201 if action == "rerun" else 200)
+            except (KeyError, ValueError, TypeError, json.JSONDecodeError) as exc:
                 self.send_json({"ok": False, "error": str(exc)}, 400)
             return
         if path == "/api/worker/claim" or re.fullmatch(
-            r"/api/worker/tasks/[a-f0-9]{32}/(heartbeat|result|finish)", path
+            r"/api/worker/(?:tasks/[a-f0-9]{32}/(?:heartbeat|result|finish)|"
+            r"logins/[a-f0-9]{32}/(?:heartbeat|finish))", path
         ):
             if not self.require_remote_tasks():
                 return
@@ -7782,22 +7890,39 @@ class DashboardHandler(BaseHTTPRequestHandler):
             try:
                 payload = self.read_json(maximum=8 * 1024 * 1024)
                 if path == "/api/worker/claim":
-                    task = REMOTE_TASK_QUEUE.claim(str(payload.get("worker_id") or "local-worker"))
-                    self.send_json({"ok": True, "task": task})
+                    worker_id = str(payload.get("worker_id") or "local-worker")
+                    readiness = (
+                        payload.get("readiness")
+                        if isinstance(payload.get("readiness"), dict) else {}
+                    )
+                    login = (
+                        None if worker_id.startswith("chrome-")
+                        else REMOTE_TASK_QUEUE.claim_login(worker_id, readiness)
+                    )
+                    task = None if login else REMOTE_TASK_QUEUE.claim(worker_id, readiness)
+                    self.send_json({"ok": True, "login": login, "task": task})
                     return
                 parts = path.split("/")
-                task_id, action = parts[4], parts[5]
+                resource, item_id, action = parts[3], parts[4], parts[5]
                 lease = str(payload.get("lease_token") or "")
-                if action == "heartbeat":
-                    result = REMOTE_TASK_QUEUE.heartbeat(task_id, lease, payload)
+                if resource == "logins":
+                    result = (
+                        REMOTE_TASK_QUEUE.login_heartbeat(item_id, lease, payload)
+                        if action == "heartbeat"
+                        else {"ok": True, "login": REMOTE_TASK_QUEUE.finish_login(
+                            item_id, lease, payload
+                        )}
+                    )
+                elif action == "heartbeat":
+                    result = REMOTE_TASK_QUEUE.heartbeat(item_id, lease, payload)
                 elif action == "result":
                     result = REMOTE_TASK_QUEUE.accept_result(
-                        task_id, lease, str(payload.get("model_id") or ""),
+                        item_id, lease, str(payload.get("model_id") or ""),
                         str(payload.get("request_id") or ""), payload.get("record") or {},
                         Path(BASE_DIR) / "runtime" / "web_results",
                     )
                 else:
-                    result = {"ok": True, "task": REMOTE_TASK_QUEUE.finish(task_id, lease, payload)}
+                    result = {"ok": True, "task": REMOTE_TASK_QUEUE.finish(item_id, lease, payload)}
                 self.send_json(result)
             except PermissionError as exc:
                 self.send_json({"ok": False, "error": str(exc)}, 403)
@@ -7883,8 +8008,57 @@ class DashboardHandler(BaseHTTPRequestHandler):
             })
             return
         path = self.path.split("?", 1)[0]
+        if path == "/api/diagnosis":
+            if not self.require_remote_tasks():
+                return
+            self.send_json({"ok": True, "readiness": REMOTE_TASK_QUEUE.diagnosis_readiness()})
+            return
+        # Public reports are addressed only by server-generated 128-bit keys.
+        # Legacy customer slugs must never expose stale, failed or cancelled jobs.
+        diagnosis_match = re.fullmatch(r"/api/diagnosis/([a-f0-9]{32})", path)
+        if diagnosis_match:
+            if not self.require_remote_tasks():
+                return
+            try:
+                payload = REMOTE_TASK_QUEUE.diagnosis_report(diagnosis_match.group(1))
+                if payload.get("task") is None:
+                    self.send_json({"ok": False, "error": "诊断报告不存在"}, 404)
+                    return
+                self.send_json({"ok": True, **payload})
+            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                self.send_json({"ok": False, "error": str(exc)}, 400)
+            return
         if path == "/tasks":
             self.send_bytes(task_page_html().encode("utf-8"), "text/html; charset=utf-8")
+            return
+        if path == "/api/logins":
+            if not self.require_remote_tasks():
+                return
+            if not self.task_authorized():
+                self.send_json({"ok": False, "error": "任务访问密钥无效"}, 401)
+                return
+            self.send_json({"ok": True, "logins": REMOTE_TASK_QUEUE.list_login_requests()})
+            return
+        if path == "/api/workers":
+            if not self.require_remote_tasks():
+                return
+            if not self.task_authorized():
+                self.send_json({"ok": False, "error": "任务访问密钥无效"}, 401)
+                return
+            self.send_json({"ok": True, "workers": REMOTE_TASK_QUEUE.list_workers()})
+            return
+        task_results_match = re.fullmatch(r"/api/tasks/([a-f0-9]{32})/results", path)
+        if task_results_match:
+            if not self.require_remote_tasks():
+                return
+            if not self.task_authorized():
+                self.send_json({"ok": False, "error": "任务访问密钥无效"}, 401)
+                return
+            results = REMOTE_TASK_QUEUE.results(task_results_match.group(1))
+            if results is None:
+                self.send_json({"ok": False, "error": "任务不存在"}, 404)
+            else:
+                self.send_json({"ok": True, "results": results})
             return
         task_match = re.fullmatch(r"/api/tasks(?:/([a-f0-9]{32}))?", path)
         if task_match:
@@ -8175,7 +8349,12 @@ def main():
             daemon=True,
         ).start()
     print("Doubao dashboard:", "http://%s:%s" % (HOST, PORT))
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
 
 
 if __name__ == "__main__":

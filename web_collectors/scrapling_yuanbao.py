@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+import shutil
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
 
 from monitor_core.plugins import ROOT
 
+from .browser import session_cookies
 from .config import site_config
 
 
@@ -32,6 +35,9 @@ def _logged_out(page) -> bool:
         "请登录后输入内容",
         "请使用微信扫描二维码登录",
         "未登录",
+        "Not logged in",
+        "Log In with WeChat",
+        "Please scan the QR code",
     ))
 
 
@@ -44,8 +50,13 @@ class YuanbaoScraplingCollector:
         except ImportError as exc:
             raise RuntimeError("元宝隐身采集需要安装 scrapling[fetchers]") from exc
         self.site = site_config("yuanbao")
-        self.profile = profile or (ROOT / "runtime" / "web_profiles" / "yuanbao_scrapling")
+        session_root = ROOT / "runtime" / "web_sessions"
+        session_root.mkdir(parents=True, exist_ok=True)
+        self._temporary_profile = profile is None
+        self.profile = profile or Path(tempfile.mkdtemp(prefix="yuanbao-", dir=session_root))
         self.profile.mkdir(parents=True, exist_ok=True)
+        self.cookies = session_cookies(self.site)
+        self._closed = False
         self.session = StealthySession(
             headless=headless,
             user_data_dir=str(self.profile),
@@ -65,7 +76,24 @@ class YuanbaoScraplingCollector:
         self.session.start()
 
     def close(self) -> None:
-        self.session.close()
+        if self._closed:
+            return
+        self._closed = True
+        try:
+            self.session.close()
+        finally:
+            if self._temporary_profile:
+                shutil.rmtree(self.profile, ignore_errors=True)
+            try:
+                (ROOT / "runtime" / "web_sessions").rmdir()
+            except OSError:
+                pass
+
+    def _apply_cookies(self, page) -> None:
+        if not self.cookies:
+            return
+        page.context.add_cookies(self.cookies)
+        self.cookies = []
 
     def _snapshot(self, page) -> dict[str, Any]:
         return page.evaluate(
@@ -97,11 +125,22 @@ class YuanbaoScraplingCollector:
         ) or {}
 
     def check_ready(self) -> dict[str, Any]:
+        if not self.cookies:
+            from .browser import cookie_env_name
+            return {
+                "ok": False,
+                "status": "login_required",
+                "message": f"隐身会话需要临时设置 {cookie_env_name(self.site.id)}",
+                "web": {},
+                "location": "local",
+            }
         state: dict[str, Any] = {}
         error: list[Exception] = []
 
         def action(page) -> None:
             try:
+                self._apply_cookies(page)
+                page.goto(self.site.home_url, wait_until="domcontentloaded")
                 page.wait_for_timeout(1500)
                 state.update({
                     "input": bool(_visible_input(page, self.site.input_selectors)),
@@ -122,6 +161,8 @@ class YuanbaoScraplingCollector:
         state: dict[str, Any] = {}
 
         def action(page) -> None:
+            self._apply_cookies(page)
+            page.goto(self.site.home_url, wait_until="domcontentloaded")
             deadline = time.monotonic() + max(30, timeout)
             while time.monotonic() < deadline:
                 if _visible_input(page, self.site.input_selectors) and not _logged_out(page):
@@ -139,6 +180,8 @@ class YuanbaoScraplingCollector:
 
         def action(page) -> None:
             try:
+                self._apply_cookies(page)
+                page.goto(self.site.home_url, wait_until="domcontentloaded")
                 input_box = _visible_input(page, self.site.input_selectors)
                 if input_box is None or _logged_out(page):
                     raise RuntimeError("腾讯元宝 Scrapling 会话未登录或输入框选择器已失效")
@@ -194,7 +237,7 @@ class YuanbaoScraplingCollector:
             "url": str(output.get("url") or ""),
             "expected_source_count": len(sources),
             "source_capture_complete": True,
-            "capture_mode": "scrapling_stealth_web",
+            "capture_mode": "scrapling_incognito_stealth_web",
         }
 
 

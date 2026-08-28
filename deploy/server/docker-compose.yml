@@ -30,13 +30,17 @@ services:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       ANTHROPIC_BASE_URL: https://api.deepseek.com/anthropic
       DOUBAO_PRODUCT_AI_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4-flash}
+      MONITOR_DOUBAO_COOKIES_JSON: ${MONITOR_DOUBAO_COOKIES_JSON:-}
+      MONITOR_YUANBAO_COOKIES_JSON: ${MONITOR_YUANBAO_COOKIES_JSON:-}
+      MONITOR_WENXIN_COOKIES_JSON: ${MONITOR_WENXIN_COOKIES_JSON:-}
+      MONITOR_DEEPSEEK_COOKIES_JSON: ${MONITOR_DEEPSEEK_COOKIES_JSON:-}
+      MONITOR_QUARK_COOKIES_JSON: ${MONITOR_QUARK_COOKIES_JSON:-}
     volumes:
       - ../../runtime:/app/runtime
       - ../../config:/app/config
     ports:
       - "3000:3000"
       - "8765:8765"
-      - "127.0.0.1:6080:6080"
 
 volumes:
   postgres_data:
