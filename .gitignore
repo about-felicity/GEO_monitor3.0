@@ -2,6 +2,8 @@
 /config/doubao_api_keys.env
 /config/remote_worker.env
 /vps_config.txt
+/ds_apikey.txt
+/config/deepseek_api_key.secret
 **/.env
 /deploy/server/server.env
 /deploy/hybrid/server.env
@@ -43,6 +45,9 @@ doubao_pending_saves/
 node_modules/
 __pycache__/
 *.py[cod]
+/.venv/
+/Scrapling/
+.DS_Store
 
 # Logs, temporary state, screenshots and UI dumps
 *.log
@@ -74,6 +79,7 @@ deepseek*
 !model_plugins/
 !model_plugins/*/
 !model_plugins/*/plugin.py
+!web_collectors/questions/deepseek.txt
 image_pro/
 outputs/
 reports/

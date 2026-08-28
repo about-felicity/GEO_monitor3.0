@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "GEO 三模型采集器",
+  "version": "1.8.24",
+  "description": "静默复用三个已登录模型标签页，每轮在原标签页创建独立新会话并在本机分析正文与全部信源。",
+  "permissions": ["alarms", "scripting", "storage", "tabs"],
+  "host_permissions": [
+    "https://www.ifbcy.com/*",
+    "https://ifbcy.com/*",
+    "https://www.doubao.com/*",
+    "https://doubao.com/*",
+    "https://yuanbao.tencent.com/*",
+    "https://wenxin.baidu.com/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_title": "GEO 三模型采集器",
+    "default_popup": "popup.html"
+  },
+  "options_page": "popup.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.doubao.com/*",
+        "https://doubao.com/*",
+        "https://yuanbao.tencent.com/*",
+        "https://wenxin.baidu.com/*"
+      ],
+      "css": ["content.css"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

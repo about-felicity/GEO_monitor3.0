@@ -3,12 +3,16 @@ services:
     build:
       context: ../..
       dockerfile: deploy/hybrid/Dockerfile
+      args:
+        VITE_MONITOR_BASE_PATH: ${MONITOR_BASE_PATH:-/geo}
     restart: unless-stopped
+    entrypoint: ["/usr/bin/tini", "--", "/bin/sh", "/app/entrypoint.sh"]
     env_file: server.env
     environment:
       TZ: Asia/Shanghai
       DOUBAO_DASHBOARD_HOST: 0.0.0.0
       DOUBAO_DASHBOARD_PORT: 8765
+      MONITOR_PUBLIC_ORIGIN: ${MONITOR_PUBLIC_ORIGIN:-https://www.ifbcy.com}
       MONITOR_REMOTE_TASKS_ENABLED: "1"
       DOUBAO_CONTENT_WORKER_DISABLED: "1"
       MONITOR_DASHBOARD_WARMUP_DISABLED: "1"
@@ -20,6 +24,12 @@ services:
     cpus: 1.0
     volumes:
       - ./runtime:/app/runtime
+      - ./entrypoint.sh:/app/entrypoint.sh:ro
+      - ../../doubao_dashboard_server.py:/app/doubao_dashboard_server.py:ro
+      - ../../doubao_env_loader.py:/app/doubao_env_loader.py:ro
+      - ../../monitor_core/remote_tasks.py:/app/monitor_core/remote_tasks.py:ro
+      - ../../yuanbao_monitor/dashboard/dist:/app/yuanbao_monitor/dashboard/dist:ro
+      - ../../yuanbao_monitor/dashboard/scripts/verify-production-assets.mjs:/app/yuanbao_monitor/dashboard/scripts/verify-production-assets.mjs:ro
     ports:
       - "127.0.0.1:8300:3000"
       - "127.0.0.1:8876:8765"

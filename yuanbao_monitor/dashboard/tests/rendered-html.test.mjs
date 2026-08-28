@@ -89,6 +89,67 @@ test("页面元数据使用通用多模型产品名称", async () => {
   assert.doesNotMatch(layout, /Starter Project|codex-preview|豆包 × 元宝/);
 });
 
+test("客户从根页面创建诊断并在完成后进入随机密钥报告页", async () => {
+  const home = await readFile(new URL("page.tsx", app), "utf8");
+  const start = await readFile(new URL("DiagnosisStart.tsx", app), "utf8");
+  const source = await readFile(new URL("DiagnosisDashboard.tsx", app), "utf8");
+  const route = await readFile(new URL("[customer]/page.tsx", app), "utf8");
+  const missingRoute = await readFile(new URL("[customer]/[...missing]/page.tsx", app), "utf8");
+  const admin = await readFile(new URL("admin/page.tsx", app), "utf8");
+  assert.match(home, /DiagnosisStart/);
+  assert.doesNotMatch(home, /<Dashboard/);
+  assert.match(start, /\/api\/diagnosis/);
+  assert.match(start, /report_key/);
+  assert.match(start, /geoActiveReportKey/);
+  assert.match(start, /response\.status === 404/);
+  assert.match(start, /clearActiveDiagnosis/);
+  assert.match(start, /sessionStorage\.removeItem\("geoActiveReportKey"\)/);
+  assert.match(start, /window\.location\.pathname\.startsWith\("\/geo\/"\)/);
+  assert.match(start, /采集服务连接失败，正在自动重试/);
+  assert.match(start, /window\.location\.assign/);
+  assert.match(start, /需要诊断的具体产品/);
+  assert.match(start, /提交并排队/);
+  assert.match(start, /重新运行本次诊断/);
+  assert.match(start, /返回重新填写/);
+  assert.match(start, /retryFailedTask/);
+  assert.match(start, /slice\(0, unsuccessful \? 5 : 12\)/);
+  assert.match(source, /三模型 · 每模型 8 轮 · 共 24 轮/);
+  assert.match(source, /综合推荐率/);
+  assert.match(source, /逐轮回答正文与全部信源/);
+  assert.match(source, /展开全部正文/);
+  assert.match(source, /本轮全部信源/);
+  assert.doesNotMatch(source, /report\.sources\.slice\(0, 30\)/);
+  assert.match(source, /实时诊断日志/);
+  assert.match(source, /api\/diagnosis\/\$\{customerSlug\}/);
+  assert.match(source, /response\.status === 404/);
+  assert.match(source, /!next\.task \|\| next\.task\.status !== "completed"/);
+  assert.match(source, /sessionStorage\.removeItem\("geoActiveReportKey"\)/);
+  assert.match(source, /window\.location\.replace/);
+  assert.doesNotMatch(source, /startDiagnosis/);
+  assert.match(route, /DiagnosisDashboard/);
+  assert.match(route, /\^\[a-f0-9\]\{32\}\$/);
+  assert.match(route, /redirect\(rootPath\)/);
+  assert.match(route, /MONITOR_PUBLIC_ORIGIN/);
+  assert.match(route, /api\/diagnosis\/\$\{reportKey\}/);
+  assert.match(route, /payload\?\.task\?\.status !== "completed"/);
+  assert.match(route, /dynamic = "force-dynamic"/);
+  assert.match(route, /revalidate = 0/);
+  assert.match(missingRoute, /redirect\(/);
+  assert.match(missingRoute, /MONITOR_PUBLIC_ORIGIN/);
+  assert.match(admin, /Dashboard/);
+});
+
+test("生产构建默认把前端资源挂载在 /geo 下", async () => {
+  const config = await readFile(new URL("../vite.config.ts", import.meta.url), "utf8");
+  const packageJson = await readFile(new URL("../package.json", import.meta.url), "utf8");
+  const verifier = await readFile(new URL("../scripts/verify-production-assets.mjs", import.meta.url), "utf8");
+  assert.match(config, /process\.env\.NODE_ENV === "production" \? "\/geo"/);
+  assert.match(config, /configuredBasePath\.replace/);
+  assert.match(packageJson, /verify:production-assets/);
+  assert.match(verifier, /refusing to publish an unstyled dashboard/);
+  assert.match(verifier, /Production CSS or JavaScript assets are missing/);
+});
+
 test("日期筛选首屏按北京时间一次性初始化", async () => {
   const source = await readFile(new URL("Dashboard.tsx", app), "utf8");
   assert.match(source, /const \[date, setDate\] = useState\(\(\) => new Intl\.DateTimeFormat/);

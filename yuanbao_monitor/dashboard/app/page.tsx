@@ -1,5 +1,5 @@
-import { Dashboard } from "./Dashboard";
+import { DiagnosisStart } from "./DiagnosisStart";
 
 export default function Home() {
-  return <Dashboard />;
+  return <DiagnosisStart />;
 }

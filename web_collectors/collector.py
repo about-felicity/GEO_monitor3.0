@@ -3,12 +3,12 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import urlparse
 
 from monitor_core.plugins import ROOT
 
-from .browser import SitePage, launch_browser
+from .browser import SitePage, launch_browser, session_cookies
 from .config import SiteConfig, site_config
 
 
@@ -19,15 +19,26 @@ def _js(value: Any) -> str:
 class BrowserCollector:
     def __init__(self, model: str, *, headless: bool = True):
         self.site: SiteConfig = site_config(model)
-        launch_browser(self.site, headless=headless)
-        self.page = SitePage(self.site)
-        self.page.call("Page.enable")
-        self.page.call("Runtime.enable")
+        self.browser = launch_browser(self.site, headless=headless)
+        try:
+            self.page = SitePage(self.site)
+            self.page.call("Page.enable")
+            self.page.call("Runtime.enable")
+            self.has_session_cookies = bool(cookies := session_cookies(self.site))
+            if self.has_session_cookies:
+                self.page.call("Network.enable")
+                self.page.call("Network.setCookies", {"cookies": cookies})
+        except Exception:
+            self.browser.close()
+            raise
 
     def close(self) -> None:
-        if self.page.ws is not None:
-            self.page.ws.close()
-            self.page.ws = None
+        try:
+            if self.page.ws is not None:
+                self.page.ws.close()
+                self.page.ws = None
+        finally:
+            self.browser.close()
 
     def navigate_home(self) -> None:
         self.page.call("Page.navigate", {"url": self.site.home_url}, timeout=30)
@@ -56,6 +67,15 @@ class BrowserCollector:
 """) or {}
 
     def check_ready(self) -> dict[str, Any]:
+        if not self.has_session_cookies:
+            from .browser import cookie_env_name
+            return {
+                "ok": False,
+                "status": "login_required",
+                "message": f"隐身会话需要临时设置 {cookie_env_name(self.site.id)}",
+                "web": {},
+                "location": "local",
+            }
         self.navigate_home()
         deadline = time.monotonic() + 20
         state: dict[str, Any] = {}
@@ -67,6 +87,64 @@ class BrowserCollector:
         text = str(state.get("text") or "")
         marker = next((item for item in self.site.login_markers if item.casefold() in text.casefold()), "")
         return {"ok": False, "status": "login_required", "message": f"请在已打开的 {self.site.name} 网页完成登录" + (f"（检测到：{marker}）" if marker else ""), "web": {}, "location": "local"}
+
+    def wait_for_login_cookies(
+        self, *, timeout: int = 600, progress: Callable[[str], None] | None = None
+    ) -> list[dict[str, Any]]:
+        """Wait for a manual login and return cookies without persisting them."""
+        self.page.call("Network.enable")
+        self.navigate_home()
+        time.sleep(1.5)
+
+        def cookies() -> list[dict[str, Any]]:
+            payload = self.page.call("Network.getAllCookies") or {}
+            values = payload.get("cookies") if isinstance(payload, dict) else []
+            output = []
+            for item in values or []:
+                if not isinstance(item, dict) or not str(item.get("name") or ""):
+                    continue
+                output.append({
+                    key: item[key]
+                    for key in (
+                        "name", "value", "domain", "path", "secure", "httpOnly",
+                        "expires", "sameSite",
+                    )
+                    if key in item
+                })
+            return output
+
+        baseline = {
+            (str(item.get("domain")), str(item.get("name")), str(item.get("value")))
+            for item in cookies()
+        }
+        deadline = time.monotonic() + max(30, timeout)
+        next_progress = 0.0
+        consecutive_ready = 0
+        while time.monotonic() < deadline:
+            state = self._input_state()
+            body_text = str(self.page.evaluate(
+                "String(document.body?.innerText||'').slice(0,12000)"
+            ) or "")
+            logged_out = any(marker in body_text for marker in self.site.login_markers)
+            current = cookies()
+            fingerprint = {
+                (str(item.get("domain")), str(item.get("name")), str(item.get("value")))
+                for item in current
+            }
+            changed = bool(fingerprint - baseline)
+            consecutive_ready = (
+                consecutive_ready + 1
+                if state.get("ok") and not logged_out and changed and current else 0
+            )
+            if consecutive_ready >= 2:
+                return current
+            moment = time.monotonic()
+            if progress and moment >= next_progress:
+                remaining = max(0, int(deadline - moment))
+                progress(f"等待你在本机 {self.site.name} 隐身窗口完成登录（剩余 {remaining} 秒）")
+                next_progress = moment + 3
+            time.sleep(1)
+        raise TimeoutError(f"{self.site.name} 登录等待超时，请重新发起登录")
 
     def _snapshot(self) -> dict[str, Any]:
         return self.page.evaluate(fr"""
@@ -108,6 +186,24 @@ class BrowserCollector:
         time.sleep(0.4)
         self.page.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Enter", "code": "Enter"})
         self.page.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "Enter", "code": "Enter"})
+        if self.site.id == "doubao":
+            time.sleep(0.6)
+            self.page.evaluate(r"""
+(()=>{
+  const input=document.querySelector('[contenteditable=true][role=textbox]');
+  if(!input||!String(input.innerText||'').trim())return false;
+  const ir=input.getBoundingClientRect();
+  const candidates=[...document.querySelectorAll('button')].filter(button=>{
+    const r=button.getBoundingClientRect();
+    return !button.disabled&&r.width>=28&&r.width<=52&&r.height>=28&&r.height<=52&&
+      r.x>=ir.right-80&&r.y>=ir.bottom&&r.y<=ir.bottom+80;
+  });
+  const send=candidates[candidates.length-1];
+  if(!send)return false;
+  send.click();
+  return true;
+})()
+""")
 
     def _doubao_result(self) -> dict[str, Any] | None:
         if self.site.id != "doubao":
@@ -182,7 +278,7 @@ class BrowserCollector:
             "url": str(last.get("url") or ""),
             "expected_source_count": expected,
             "source_capture_complete": bool(last.get("source_capture_complete", len(sources) >= expected)),
-            "capture_mode": "headless_web",
+            "capture_mode": "incognito_headless_web",
         }
 
 

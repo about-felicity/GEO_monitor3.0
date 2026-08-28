@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import socket
 import subprocess
+import sys
 import time
 import urllib.request
 from pathlib import Path
@@ -22,15 +24,29 @@ def port_open(port: int) -> bool:
 
 
 def chrome_executable() -> Path:
-    candidates = (
+    configured = str(os.environ.get("MONITOR_CHROME_PATH") or "").strip()
+    candidates = [Path(configured)] if configured else []
+    candidates.extend((
+        Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+        Path("/Applications/Chromium.app/Contents/MacOS/Chromium"),
         Path(os.environ.get("PROGRAMFILES", "")) / "Google/Chrome/Application/chrome.exe",
         Path(os.environ.get("PROGRAMFILES(X86)", "")) / "Google/Chrome/Application/chrome.exe",
         Path(os.environ.get("LOCALAPPDATA", "")) / "Google/Chrome/Application/chrome.exe",
-    )
+        Path("/usr/bin/google-chrome"),
+        Path("/usr/bin/google-chrome-stable"),
+        Path("/usr/bin/chromium"),
+        Path("/usr/bin/chromium-browser"),
+    ))
     for path in candidates:
         if path.is_file():
             return path
-    raise RuntimeError("找不到 Google Chrome")
+    for name in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser"):
+        resolved = shutil.which(name)
+        if resolved:
+            return Path(resolved)
+    raise RuntimeError(
+        f"找不到 Google Chrome（{sys.platform}）；可通过 MONITOR_CHROME_PATH 指定可执行文件"
+    )
 
 
 def ensure_chrome(port: int, profile: Path, home_url: str) -> None:

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>GEO 三模型采集器</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+    <header><div><small>GEO MONITOR</small><h1>三模型采集器</h1></div><span id="phase">未启动</span></header>
+    <label>服务器地址<input id="server" value="https://www.ifbcy.com/geo" autocomplete="off"></label>
+    <label>Worker 密钥<input id="token" type="password" autocomplete="off" placeholder="输入一次，保存在本机 Chrome"></label>
+    <div id="saved" class="saved" hidden><span>✓ 密钥已保存在本机，重启 Chrome 后会自动连接</span><button id="forget" type="button">清除</button></div>
+    <div class="split"><label>Worker 名称<input id="workerId" value="chrome-office" autocomplete="off"></label><label>轮次间隔（秒）<input id="interval" type="number" min="3" value="15"></label></div>
+    <section id="models"></section>
+    <p id="message">请先打开并登录豆包、腾讯元宝和文心一言三个网页。</p>
+    <div class="actions"><button id="start">连接并检测</button><button id="stop" class="secondary">停止</button></div>
+    <button id="tasks" class="manage">打开任务管理中心</button>
+    <footer>三模型并行、每轮独立新会话、本机分析；不读取或导出 Cookie，服务器仅接收客户报告所需的最终正文、分析结果与信源。</footer>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>
