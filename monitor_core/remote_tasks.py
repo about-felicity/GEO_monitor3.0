@@ -31,10 +31,11 @@ ALLOWED_MODELS = ("doubao", "yuanbao", "wenxin", "deepseek", "kimi", "quark")
 DIAGNOSIS_MODELS = ("doubao", "yuanbao", "wenxin", "quark", "deepseek", "kimi")
 DIAGNOSIS_COLLECTION_MODELS = ("doubao", "yuanbao", "wenxin", "quark", "deepseek")
 DIAGNOSIS_FIXED_ROUNDS = {"deepseek": 2, "kimi": 2}
-CURRENT_PROBABILITY_POLICY_VERSION = 5
+CURRENT_PROBABILITY_POLICY_VERSION = 6
 HIGH_PROBABILITY_PRIORS = {
     4: (70.0, 3.0),
     5: (88.0, 6.0),
+    6: (88.0, 6.0),
 }
 FINAL_STATES = {"completed", "failed", "cancelled"}
 DELETABLE_STATES = FINAL_STATES | {"paused"}
@@ -114,8 +115,12 @@ def _brand_probability(
     else:
         # Ordinary brands use a bounded policy score.  The smooth saturation
         # preserves ordering below the 30% ceiling instead of flattening every
-        # strong sample to the same artificial value.
+        # strong sample to the same artificial value. Policy v6 applies the
+        # administrator-requested 50% reduction after that existing score;
+        # older reports retain their snapshotted v4/v5 values.
         calibrated = round(30.0 * (1.0 - math.exp(-calibrated / 30.0)), 1)
+        if int(probability_policy_version or 4) >= 6:
+            calibrated = round(calibrated * 0.5, 1)
     return calibrated, raw_rate, round(raw_rate - calibrated, 1)
 
 
@@ -2716,7 +2721,14 @@ class RemoteTaskQueue:
                     "overall_weighting": "equal_weight_per_independent_platform",
                     "kimi_overall_weight": 0,
                     "high_probability_prior_applied": high_probability_brand,
-                    "ordinary_brand_ceiling": None if high_probability_brand else 30.0,
+                    "ordinary_brand_ceiling": (
+                        None if high_probability_brand
+                        else 15.0 if probability_policy_version >= 6 else 30.0
+                    ),
+                    "ordinary_brand_multiplier": (
+                        None if high_probability_brand
+                        else 0.5 if probability_policy_version >= 6 else 1.0
+                    ),
                     "prior_mean": (
                         HIGH_PROBABILITY_PRIORS.get(
                             probability_policy_version,

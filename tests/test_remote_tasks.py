@@ -367,7 +367,7 @@ class RemoteTaskQueueTests(unittest.TestCase):
         self.assertGreater(model_report["calibration_penalty"], 0)
         self.assertEqual(
             report["report"]["probability_adjustment"]["method"],
-            "declared_prior_sample_calibration_v5",
+            "declared_prior_sample_calibration_v6",
         )
         self.assertEqual(model_report["recommendation_rate"], report["report"]["overall_rate"])
         self.assertEqual(
@@ -965,7 +965,7 @@ class RemoteTaskQueueTests(unittest.TestCase):
         })
         self.assertFalse(self.queue.get(ordinary["id"])["high_probability_prior"])
         self.assertTrue(self.queue.get(boosted["id"])["high_probability_prior"])
-        self.assertEqual(self.queue.get(boosted["id"])["probability_policy_version"], 5)
+        self.assertEqual(self.queue.get(boosted["id"])["probability_policy_version"], 6)
         self.assertFalse(
             self.queue.diagnosis_report("policy-before")["report"]
             ["probability_adjustment"]["high_probability_prior_applied"]
@@ -1059,6 +1059,30 @@ class RemoteTaskQueueTests(unittest.TestCase):
             high_probability_prior=True,
         )[0]
         self.assertGreater(prior, best)
+
+    def test_v6_halves_only_ordinary_brand_probability(self):
+        shared = {
+            "report_key": "same", "brand": "品牌", "product": "产品",
+            "question": "问题", "model": "doubao", "rank_quality": 1.0,
+            "evidence_quality": 1.0,
+        }
+        legacy_ordinary = _brand_probability(
+            3, 3, **shared, probability_policy_version=5,
+        )[0]
+        current_ordinary = _brand_probability(
+            3, 3, **shared, probability_policy_version=6,
+        )[0]
+        legacy_high = _brand_probability(
+            3, 3, **shared, high_probability_prior=True,
+            probability_policy_version=5,
+        )[0]
+        current_high = _brand_probability(
+            3, 3, **shared, high_probability_prior=True,
+            probability_policy_version=6,
+        )[0]
+        self.assertEqual(current_ordinary, round(legacy_ordinary * 0.5, 1))
+        self.assertEqual(current_high, legacy_high)
+        self.assertLess(current_ordinary, 15.0)
 
     def test_enhanced_high_probability_policy_is_stronger_and_versioned(self):
         legacy = _brand_probability(

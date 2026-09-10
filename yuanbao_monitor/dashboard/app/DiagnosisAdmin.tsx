@@ -532,7 +532,7 @@ export function DiagnosisAdmin({ initialView = "reports" }: { initialView?: "rep
       <article><span>公开访问</span><b>{reportStats.public}</b><small>客户当前可查看</small></article>
     </section>}
     {!isPaidMonitorPage && session?.role === "super_admin" && <section className="admin-settings admin-settings-enterprise">
-      <div className="admin-setting-copy"><small>DIAGNOSIS POLICY</small><b>诊断与概率策略</b><span>名单作为公开标注的高概率先验参与校准；不在名单中的品牌采用不超过 30% 的平滑策略评分。原始命中率和回答证据始终保留。</span></div>
+      <div className="admin-setting-copy"><small>DIAGNOSIS POLICY</small><b>诊断与概率策略</b><span>名单作为公开标注的高概率先验参与校准；不在名单中的品牌按原普通策略评分再降低 50%，现行上限为 15%。原始命中率和回答证据始终保留。</span></div>
       <label className="admin-rounds-field"><span>默认诊断轮数</span><input min={1} max={20} type="number" value={rounds} onChange={(e) => setRounds(Number(e.target.value))} /></label>
       <label className="admin-brand-prior-field"><span>高概率品牌名单（每行一个）</span><textarea value={highProbabilityBrands} onChange={(event) => setHighProbabilityBrands(event.target.value)} placeholder={"例如：\n品牌 A\n品牌 B"} /></label>
       <button disabled={saving} onClick={saveSettings}>{saving ? "保存中…" : "保存策略"}</button>
