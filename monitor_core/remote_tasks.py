@@ -1701,6 +1701,9 @@ class RemoteTaskQueue:
             "product_name": str(task.get("product_name") or ""),
             "question": str((task.get("questions") or [""])[0]),
             "high_probability_prior": bool(task.get("high_probability_prior")),
+            "probability_policy_version": int(
+                task.get("probability_policy_version") or 4
+            ),
             "records": records,
         }
 
@@ -1742,6 +1745,10 @@ class RemoteTaskQueue:
             "product_name": str(task.get("product_name") or ""),
             "question": str((task.get("questions") or [""])[0]),
             "high_probability_prior": bool(task.get("high_probability_prior")),
+            "probability_policy_version": int(
+                task.get("probability_policy_version") or 4
+            ),
+            "current_probability_policy_version": CURRENT_PROBABILITY_POLICY_VERSION,
             "records": records,
             "audits": audits,
         }
@@ -1785,6 +1792,39 @@ class RemoteTaskQueue:
                     return None
                 if str(task.get("status") or "") != "completed":
                     raise ValueError("只有已完成的诊断报告可以编辑")
+                previous_policy_version = int(
+                    task.get("probability_policy_version") or 4
+                )
+                # Audits created before policy v6 did not include the policy
+                # version in their JSON snapshots. Preserve the version that
+                # is still attached to the report before upgrading it, so a
+                # later full revert can restore evidence and calibration as
+                # one atomic historical state.
+                for audit_row in connection.execute(
+                    "SELECT id,before_json,after_json FROM report_edit_audit "
+                    "WHERE report_key=? AND reverted_at=''",
+                    (report_key,),
+                ).fetchall():
+                    changed = False
+                    values: dict[str, dict[str, Any]] = {}
+                    for field in ("before_json", "after_json"):
+                        try:
+                            value = json.loads(audit_row[field] or "{}")
+                        except (TypeError, ValueError, json.JSONDecodeError):
+                            value = {}
+                        if isinstance(value, dict) and "probability_policy_version" not in value:
+                            value["probability_policy_version"] = previous_policy_version
+                            changed = True
+                        values[field] = value if isinstance(value, dict) else {}
+                    if changed:
+                        connection.execute(
+                            "UPDATE report_edit_audit SET before_json=?,after_json=? WHERE id=?",
+                            (
+                                json.dumps(values["before_json"], ensure_ascii=False),
+                                json.dumps(values["after_json"], ensure_ascii=False),
+                                audit_row["id"],
+                            ),
+                        )
                 stored_rows = connection.execute(
                     "SELECT request_id,model_id,created_at,record_json FROM remote_task_results "
                     "WHERE task_id=? ORDER BY created_at,request_id",
@@ -1855,12 +1895,22 @@ class RemoteTaskQueue:
                 updated_task["product_name"] = product_name
                 updated_task["questions"] = [question]
                 updated_task["high_probability_prior"] = high_probability_prior
+                updated_task["probability_policy_version"] = (
+                    CURRENT_PROBABILITY_POLICY_VERSION
+                )
                 after = self._report_editor_snapshot(updated_task, after_records)
                 moment = now_text()
                 connection.execute(
-                    "UPDATE remote_tasks SET brand_name=?,product_name=?,questions_json=?,high_probability_prior=?,updated_at=? "
+                    "UPDATE remote_tasks SET brand_name=?,product_name=?,questions_json=?,"
+                    "high_probability_prior=?,probability_policy_version=?,updated_at=? "
                     "WHERE id=?",
-                    (brand_name, product_name, json.dumps([question], ensure_ascii=False), 1 if high_probability_prior else 0, moment, str(task["id"])),
+                    (
+                        brand_name, product_name,
+                        json.dumps([question], ensure_ascii=False),
+                        1 if high_probability_prior else 0,
+                        CURRENT_PROBABILITY_POLICY_VERSION,
+                        moment, str(task["id"]),
+                    ),
                 )
                 connection.execute(
                     "INSERT INTO report_edit_audit(id,task_id,report_key,editor_username,created_at,before_json,after_json) "
@@ -1921,6 +1971,13 @@ class RemoteTaskQueue:
                 snapshot_records = snapshot.get("records")
                 if not brand_name or not question or not isinstance(snapshot_records, list):
                     raise ValueError("原始报告快照不完整，无法安全撤回")
+                try:
+                    snapshot_policy_version = int(
+                        snapshot.get("probability_policy_version")
+                        or task.get("probability_policy_version") or 4
+                    )
+                except (TypeError, ValueError):
+                    raise ValueError("原始报告概率策略版本无效，无法安全撤回") from None
                 stored_ids = {
                     str(row["request_id"])
                     for row in connection.execute(
@@ -1946,11 +2003,11 @@ class RemoteTaskQueue:
                 moment = now_text()
                 connection.execute(
                     "UPDATE remote_tasks SET brand_name=?,product_name=?,questions_json=?,"
-                    "high_probability_prior=?,updated_at=? WHERE id=?",
+                    "high_probability_prior=?,probability_policy_version=?,updated_at=? WHERE id=?",
                     (
                         brand_name, product_name, json.dumps([question], ensure_ascii=False),
                         1 if bool(snapshot.get("high_probability_prior")) else 0,
-                        moment, str(task["id"]),
+                        snapshot_policy_version, moment, str(task["id"]),
                     ),
                 )
                 connection.execute(

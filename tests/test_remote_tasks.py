@@ -827,12 +827,15 @@ class RemoteTaskQueueTests(unittest.TestCase):
                 ("edit-round-1", task["id"], "doubao", "2026-09-10T10:00:00+08:00", json.dumps(record, ensure_ascii=False)),
             )
             connection.execute(
-                "UPDATE remote_tasks SET status='completed',completed_steps=1,finished_at=? WHERE id=?",
+                "UPDATE remote_tasks SET status='completed',completed_steps=1,"
+                "probability_policy_version=5,finished_at=? WHERE id=?",
                 ("2026-09-10T10:01:00+08:00", task["id"]),
             )
 
         editor = self.queue.report_editor_data(report_key)
         self.assertEqual(editor["brand_name"], "旧品牌")
+        self.assertEqual(editor["probability_policy_version"], 5)
+        self.assertEqual(editor["current_probability_policy_version"], 6)
         self.assertEqual(len(editor["records"]), 1)
         edited_record = editor["records"][0]["record"]
         edited_record.update({
@@ -849,6 +852,7 @@ class RemoteTaskQueueTests(unittest.TestCase):
         }, editor_username="root-admin")
         self.assertEqual(updated["brand_name"], "新品牌")
         self.assertTrue(updated["high_probability_prior"])
+        self.assertEqual(updated["probability_policy_version"], 6)
         self.assertEqual(updated["records"][0]["record"]["question"], "新问题")
         self.assertEqual(updated["audits"][0]["editor_username"], "root-admin")
 
@@ -870,6 +874,13 @@ class RemoteTaskQueueTests(unittest.TestCase):
             "high_probability_prior": False, "records": updated["records"],
         }, editor_username="root-admin")
         self.assertEqual(second["brand_name"], "最新品牌")
+        recalculated = self.queue.diagnosis_report(
+            report_key, include_readiness=False
+        )["report"]
+        recalculated_doubao = next(
+            item for item in recalculated["models"] if item["id"] == "doubao"
+        )
+        self.assertLessEqual(recalculated_doubao["recommendation_rate"], 15.0)
         self.assertEqual(self.queue.completed_diagnosis_reports(10)[0]["manual_edit_count"], 2)
 
         restored = self.queue.revert_diagnosis_report(
@@ -879,6 +890,7 @@ class RemoteTaskQueueTests(unittest.TestCase):
         self.assertEqual(restored["product_name"], "旧产品")
         self.assertEqual(restored["question"], "旧问题")
         self.assertFalse(restored["high_probability_prior"])
+        self.assertEqual(restored["probability_policy_version"], 5)
         self.assertEqual(restored["records"][0]["record"]["web_body"], "这里只提到了其他品牌。")
         self.assertEqual(restored["audits"], [])
         self.assertEqual(self.queue.completed_diagnosis_reports(10)[0]["manual_edit_count"], 0)

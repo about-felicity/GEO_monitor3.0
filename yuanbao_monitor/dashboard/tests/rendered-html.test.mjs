@@ -140,7 +140,7 @@ test("客户从根页面创建诊断并在完成后进入随机密钥报告页",
   assert.match(login, /api\/admin\/reports\/\$\{reportEditor\.report_key\}\/edit/);
   assert.match(login, /api\/admin\/reports\/\$\{reportKey\}\/revert/);
   assert.match(login, /编辑报告/);
-  assert.match(login, /保存并重新计算报告/);
+  assert.match(login, /保存并按 v.*重新计算/);
   assert.match(login, /撤回所有修改/);
   assert.match(login, /manual_edit_count/);
   assert.match(login, /session\?\.role === "super_admin" && item\.report_key/);
