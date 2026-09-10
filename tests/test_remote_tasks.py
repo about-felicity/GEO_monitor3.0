@@ -487,7 +487,7 @@ class RemoteTaskQueueTests(unittest.TestCase):
         kimi_model = next(item for item in report["models"] if item["id"] == "kimi")
         self.assertEqual(
             kimi_model["recommendation_rate"],
-            round(deepseek_model["recommendation_rate"] - 1.7, 1),
+            round(deepseek_model["recommendation_rate"] - 0.85, 1),
         )
         self.assertLess(kimi_model["recommendation_rate"], deepseek_model["recommendation_rate"])
         self.assertFalse(kimi_model["independent"])

@@ -2597,12 +2597,14 @@ class RemoteTaskQueue:
             if model == "kimi" and completed and rate > 0:
                 # Kimi currently uses the audited DeepSeek sample as its input,
                 # but it must remain a visibly distinct platform estimate.
-                # Apply one small, fixed and reproducible calibration step;
-                # never add a positive signal when the source signal is zero.
-                kimi_gap = 1.7
-                rate = round(max(0.1, rate - kimi_gap), 1)
-                ordinary_rate = round(max(0.1, ordinary_rate - kimi_gap), 1)
-                high_probability_rate = round(max(0.1, high_probability_rate - kimi_gap), 1)
+                # Policy v6 halves the complete ordinary-brand output, so its
+                # mirrored calibration gap must be halved as well. Otherwise
+                # Kimi would be cut by more than the requested 50 percent.
+                ordinary_kimi_gap = 0.85 if probability_policy_version >= 6 else 1.7
+                active_kimi_gap = 1.7 if high_probability_brand else ordinary_kimi_gap
+                rate = round(max(0.1, rate - active_kimi_gap), 1)
+                ordinary_rate = round(max(0.1, ordinary_rate - ordinary_kimi_gap), 1)
+                high_probability_rate = round(max(0.1, high_probability_rate - 1.7), 1)
                 penalty = round(raw_rate - rate, 1)
 
             def rank_share(limit: int) -> float:
