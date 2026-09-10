@@ -1,5 +1,5 @@
 (function () {
-  const EXTENSION_BUILD = "1.8.24";
+  const EXTENSION_BUILD = "1.8.26";
   if (window.__geoMonitorExtensionLoaded === EXTENSION_BUILD) return;
   document.getElementById("__geo_monitor_control_panel")?.remove();
   window.__geoMonitorExtensionLoaded = EXTENSION_BUILD;
@@ -495,6 +495,45 @@
     return match ? Number(match[1]) : 0;
   }
 
+  function sourceFreeBody(body, sources) {
+    const genericTitles = new Set(["全部", "详情", "查看", "打开", "来源", "网页", "链接", "更多"]);
+    const rawTitles = (sources || []).map((item) => normalized(item?.title || "")).filter((title) => title.length >= 2 && !genericTitles.has(title.toLowerCase()));
+    const titles = new Set(rawTitles.map((title) => title.replace(/\s+/g, "").toLowerCase()));
+    const urls = new Set((sources || []).map((item) => String(item?.url || item?.href || "").trim()).filter(Boolean));
+    const lines = String(body || "").replace(/\r/g, "\n").split("\n");
+    const output = [];
+    const marker = /^(?:相关视频|参考(?:资料|来源|链接|信源)|引用(?:来源|链接|信源)|资料来源|信息来源|sources?|references?|related\s+videos?)\s*[:：]?$/i;
+    for (let index = 0; index < lines.length; index += 1) {
+      let line = lines[index].replace(/[ \t]+/g, " ").trim();
+      for (const title of rawTitles) line = line.replaceAll(title, "").replace(/^[\s\-–—:：]+|[\s\-–—:：]+$/g, "");
+      if (!line) { if (output.length && output[output.length - 1]) output.push(""); continue; }
+      const compact = line.replace(/\s+/g, "").toLowerCase();
+      const suffix = lines.slice(index).join("\n");
+      const suffixCompact = suffix.replace(/\s+/g, "").toLowerCase();
+      if (marker.test(line) && index >= Math.max(1, Math.floor(lines.length / 3)) &&
+          ([...titles].some((title) => suffixCompact.includes(title)) || [...urls].some((url) => suffix.includes(url)))) break;
+      if (urls.has(line) || /^https?:\/\/\S+$/i.test(line) || titles.has(compact)) continue;
+      output.push(line);
+    }
+    return output.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  }
+
+  function navigationFreeBody(body, question) {
+    const questionKey = normalized(question || "");
+    const output = [];
+    let skipPromptAfterRole = false;
+    for (const rawLine of String(body || "").replace(/\r/g, "\n").split("\n")) {
+      const line = rawLine.trim();
+      if (/^(?:近期对话|最近对话|历史对话|全部对话|对话历史|我的对话|历史会话|最近会话|我的会话|新对话|新建对话|新会话|新建会话|recent\s+chats?|chat\s+history|new\s+chat)$/i.test(line)) break;
+      if (!output.length && /^(?:用户|user)$/i.test(line)) { skipPromptAfterRole = true; continue; }
+      if (skipPromptAfterRole && questionKey && normalized(line) === questionKey) { skipPromptAfterRole = false; continue; }
+      if (!output.length && /^(?:助手|assistant)$/i.test(line)) continue;
+      if (!output.length && questionKey && normalized(line) === questionKey) continue;
+      output.push(line);
+    }
+    return output.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  }
+
   function conversationTail(question) {
     if (!question) return "";
     const roots = MODEL === "yuanbao"
@@ -522,11 +561,12 @@
     const node = nodes[nodes.length - 1] || null;
     const nodeBody = String(node?.innerText || "").replace(/\n{3,}/g, "\n\n").trim();
     const tailBody = conversationTail(question);
-    const body = tailBody.length > nodeBody.length ? tailBody : nodeBody;
+    const rawBody = MODEL === "yuanbao" && tailBody.length > nodeBody.length ? tailBody : nodeBody;
     const text = pageText();
     const challenge = verificationChallenge(text);
     const sourceRoot = MODEL === "yuanbao" && tailBody.length > nodeBody.length ? document.body : node;
     const sources = externalSources(sourceRoot);
+    const body = navigationFreeBody(sourceFreeBody(rawBody, sources), question);
     const citationCount = citationMarkerCount(sourceRoot);
     const busySelectors = [
       "[data-module='stop']",

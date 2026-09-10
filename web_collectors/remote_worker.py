@@ -26,7 +26,7 @@ from web_collectors.loop import append_jsonl, now, persist_database
 
 
 MODEL_ORDER = ("doubao", "yuanbao", "wenxin", "deepseek", "quark")
-DIAGNOSIS_MODELS = ("doubao", "yuanbao", "wenxin")
+DIAGNOSIS_MODELS = ("doubao", "yuanbao", "wenxin", "quark")
 MODEL_NAMES = {"doubao": "豆包", "yuanbao": "腾讯元宝", "wenxin": "文心一言"}
 
 

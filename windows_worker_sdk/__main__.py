@@ -9,6 +9,8 @@ from .runner import LocalSpool, WorkerRunner, load_factory
 
 
 def main() -> int:
+    from windows_enterprise_worker.session_store import load_sessions_into_environment
+    load_sessions_into_environment()
     parser = argparse.ArgumentParser(description="Replacement Windows GEO worker protocol runner")
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--poll-seconds", type=float, default=5.0)

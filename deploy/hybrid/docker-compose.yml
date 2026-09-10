@@ -28,6 +28,8 @@ services:
       - ../../doubao_dashboard_server.py:/app/doubao_dashboard_server.py:ro
       - ../../doubao_env_loader.py:/app/doubao_env_loader.py:ro
       - ../../monitor_core/remote_tasks.py:/app/monitor_core/remote_tasks.py:ro
+      - ../../model_plugins:/app/model_plugins:ro
+      - ../../web_collectors/config.py:/app/web_collectors/config.py:ro
       - ../../yuanbao_monitor/dashboard/dist:/app/yuanbao_monitor/dashboard/dist:ro
       - ../../yuanbao_monitor/dashboard/scripts/verify-production-assets.mjs:/app/yuanbao_monitor/dashboard/scripts/verify-production-assets.mjs:ro
     ports:

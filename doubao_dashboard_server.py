@@ -1,6 +1,9 @@
 import csv
+import base64
+import binascii
 import gzip
 import hashlib
+import hmac
 import html
 import importlib
 import json
@@ -8,6 +11,7 @@ import math
 import os
 import re
 import socket
+import secrets
 import subprocess
 import sys
 import threading
@@ -96,6 +100,8 @@ _CONTROL_LOCK = threading.Lock()
 _CONTROL_PROCESSES = {}
 _DIAGNOSIS_CREATE_LOCK = threading.Lock()
 _DIAGNOSIS_LAST_CREATED = {}
+_ADMIN_LOGIN_LOCK = threading.Lock()
+_ADMIN_LOGIN_ATTEMPTS = {}
 _ANALYTICS_LOCK = threading.RLock()
 _ANALYTICS_SNAPSHOT_LOCK = threading.Lock()
 _ANALYTICS_CACHE = {}
@@ -7700,10 +7706,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
         except ValueError:
             return False
 
-    def send_json(self, payload, status=200):
+    def send_json(self, payload, status=200, *, extra_headers=None):
         self.send_bytes(
             json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-            "application/json; charset=utf-8", status,
+            "application/json; charset=utf-8", status, extra_headers=extra_headers,
         )
 
     def read_json(self, maximum=65536):
@@ -7727,6 +7733,117 @@ class DashboardHandler(BaseHTTPRequestHandler):
         authorization = self.headers.get("Authorization", "")
         provided = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
         return secure_token_matches(provided, configured_token("MONITOR_WORKER_TOKEN"))
+
+    @staticmethod
+    def _admin_password_valid(password):
+        encoded = configured_token("MONITOR_ADMIN_PASSWORD_HASH")
+        try:
+            scheme, iterations, salt_text, digest_text = encoded.split("$", 3)
+            if scheme != "pbkdf2_sha256":
+                return False
+            salt = base64.urlsafe_b64decode(salt_text.encode("ascii"))
+            expected = base64.urlsafe_b64decode(digest_text.encode("ascii"))
+            actual = hashlib.pbkdf2_hmac(
+                "sha256", str(password or "").encode("utf-8"), salt, int(iterations)
+            )
+            return hmac.compare_digest(actual, expected)
+        except (ValueError, TypeError, binascii.Error):
+            return False
+
+    @staticmethod
+    def _admin_session_token(identity, lifetime=43200):
+        secret = configured_token("MONITOR_ADMIN_SESSION_SECRET")
+        if not secret:
+            return ""
+        expires = int(time.time()) + int(lifetime)
+        account_expiry = str((identity or {}).get("expires_at") or "").strip()
+        if account_expiry:
+            try:
+                parsed = datetime.fromisoformat(account_expiry)
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=CST)
+                expires = min(expires, int(parsed.timestamp()))
+            except ValueError:
+                return ""
+        payload = json.dumps(
+            {
+                "aid": str((identity or {}).get("id") or ""),
+                "u": str((identity or {}).get("username") or ""),
+                "role": str((identity or {}).get("role") or "manager"),
+                "sv": int((identity or {}).get("session_version") or 0),
+                "exp": expires,
+            },
+            separators=(",", ":"), sort_keys=True,
+        ).encode("utf-8")
+        body = base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
+        signature = hmac.new(secret.encode("utf-8"), body.encode("ascii"), hashlib.sha256).hexdigest()
+        return body + "." + signature
+
+    def admin_identity(self):
+        cookie = self.headers.get("Cookie", "")
+        match = re.search(r"(?:^|;\s*)geo_admin_session=([^;]+)", cookie)
+        secret = configured_token("MONITOR_ADMIN_SESSION_SECRET")
+        if not match or not secret:
+            return None
+        try:
+            body, provided = match.group(1).split(".", 1)
+            expected = hmac.new(secret.encode("utf-8"), body.encode("ascii"), hashlib.sha256).hexdigest()
+            if not hmac.compare_digest(provided, expected):
+                return None
+            padded = body + "=" * (-len(body) % 4)
+            payload = json.loads(base64.urlsafe_b64decode(padded).decode("utf-8"))
+            if int(payload.get("exp") or 0) <= int(time.time()):
+                return None
+            username = str(payload.get("u") or "")
+            if (
+                str(payload.get("role") or "") in {"", "super_admin"}
+                and str(payload.get("aid") or "") in {"", "root"}
+                and secure_token_matches(username, configured_token("MONITOR_ADMIN_USERNAME"))
+            ):
+                return {
+                    "id": "root", "username": username, "display_name": "总管理员",
+                    "role": "super_admin", "session_version": 0, "expires_at": "",
+                }
+            return REMOTE_TASK_QUEUE.admin_account_for_session(
+                str(payload.get("aid") or ""), username, int(payload.get("sv") or 0)
+            )
+        except (ValueError, TypeError, json.JSONDecodeError, binascii.Error):
+            return None
+
+    def admin_authorized(self):
+        return self.admin_identity() is not None
+
+    @staticmethod
+    def _admin_cookie(token, *, clear=False):
+        secure = os.environ.get("MONITOR_PUBLIC_ORIGIN", "").lower().startswith("https://")
+        value = f"geo_admin_session={token}; Path=/; HttpOnly; SameSite=Strict"
+        if secure:
+            value += "; Secure"
+        if clear:
+            value += "; Max-Age=0"
+        else:
+            value += "; Max-Age=43200"
+        return value
+
+    def require_admin(self, *, super_admin=False):
+        identity = self.admin_identity()
+        if identity and (not super_admin or identity.get("role") == "super_admin"):
+            return identity
+        if identity and super_admin:
+            self.send_json({"ok": False, "error": "仅总管理员可执行此操作"}, 403)
+            return None
+        self.send_json({"ok": False, "error": "请先登录管理员账号"}, 401)
+        return None
+
+    @staticmethod
+    def admin_can_access_report(identity, report_key):
+        return bool(
+            identity
+            and (
+                identity.get("role") == "super_admin"
+                or REMOTE_TASK_QUEUE.report_owned_by(report_key, identity.get("id"))
+            )
+        )
 
     def require_remote_tasks(self):
         if not REMOTE_TASKS_ENABLED:
@@ -7784,8 +7901,283 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if origin and not self.is_allowed_dashboard_origin(origin) and not extension_worker:
             self.send_json({"ok": False, "error": "forbidden origin"}, 403)
             return
+        if path == "/api/admin/login":
+            try:
+                payload = self.read_json(8192)
+                username = str(payload.get("username") or "").strip()
+                password = str(payload.get("password") or "")
+                client_ip = (self.headers.get("X-Forwarded-For") or "").split(",", 1)[0].strip()
+                client_ip = client_ip or str(self.client_address[0] if self.client_address else "unknown")
+                now = time.time()
+                with _ADMIN_LOGIN_LOCK:
+                    attempts = [seen for seen in _ADMIN_LOGIN_ATTEMPTS.get(client_ip, []) if now - seen < 900]
+                    if len(attempts) >= 8:
+                        self.send_json({"ok": False, "error": "登录尝试过多，请稍后再试"}, 429)
+                        return
+                identity = None
+                if (
+                    secure_token_matches(username, configured_token("MONITOR_ADMIN_USERNAME"))
+                    and self._admin_password_valid(password)
+                ):
+                    identity = {
+                        "id": "root", "username": username, "display_name": "总管理员",
+                        "role": "super_admin", "session_version": 0, "expires_at": "",
+                    }
+                else:
+                    identity = REMOTE_TASK_QUEUE.authenticate_admin_account(username, password)
+                if identity is None:
+                    with _ADMIN_LOGIN_LOCK:
+                        _ADMIN_LOGIN_ATTEMPTS[client_ip] = attempts + [now]
+                    self.send_json({"ok": False, "error": "账号或密码错误"}, 401)
+                    return
+                if not identity.get("can_login", True):
+                    message = (
+                        "账号有效期已结束，请联系总管理员"
+                        if identity.get("expired") else "账号已暂停，请联系总管理员"
+                    )
+                    self.send_json({"ok": False, "error": message}, 403)
+                    return
+                with _ADMIN_LOGIN_LOCK:
+                    _ADMIN_LOGIN_ATTEMPTS.pop(client_ip, None)
+                token = self._admin_session_token(identity)
+                if not token:
+                    self.send_json({"ok": False, "error": "管理员服务尚未配置"}, 503)
+                    return
+                self.send_json(
+                    {
+                        "ok": True, "username": identity.get("username"),
+                        "display_name": identity.get("display_name"),
+                        "role": identity.get("role"),
+                    },
+                    extra_headers={"Set-Cookie": self._admin_cookie(token)},
+                )
+            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                self.send_json({"ok": False, "error": str(exc)}, 400)
+            return
+        if path == "/api/admin/logout":
+            self.send_json(
+                {"ok": True},
+                extra_headers={"Set-Cookie": self._admin_cookie("", clear=True)},
+            )
+            return
+        if path == "/api/admin/settings":
+            if not self.require_admin(super_admin=True):
+                return
+            try:
+                settings = REMOTE_TASK_QUEUE.update_service_settings(self.read_json(8192))
+                self.send_json({"ok": True, "settings": settings})
+            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                self.send_json({"ok": False, "error": str(exc)}, 400)
+            return
+        if path == "/api/admin/accounts":
+            identity = self.require_admin(super_admin=True)
+            if not identity:
+                return
+            try:
+                body = self.read_json(16384)
+                if secure_token_matches(
+                    str(body.get("username") or "").strip(),
+                    configured_token("MONITOR_ADMIN_USERNAME"),
+                ):
+                    raise ValueError("该账号名称由总管理员使用")
+                account = REMOTE_TASK_QUEUE.create_admin_account(
+                    body, created_by=str(identity.get("username") or "")
+                )
+                self.send_json({"ok": True, "account": account}, 201)
+            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                self.send_json({"ok": False, "error": str(exc)}, 400)
+            return
+        account_quota_reset_match = re.fullmatch(
+            r"/api/admin/accounts/([a-f0-9]{32})/reset-quota", path, re.I
+        )
+        if account_quota_reset_match:
+            if not self.require_admin(super_admin=True):
+                return
+            account = REMOTE_TASK_QUEUE.reset_admin_account_quota(
+                account_quota_reset_match.group(1).lower()
+            )
+            if account is None:
+                self.send_json({"ok": False, "error": "管理员账号不存在"}, 404)
+                return
+            self.send_json({"ok": True, "account": account})
+            return
+        account_update_match = re.fullmatch(
+            r"/api/admin/accounts/([a-f0-9]{32})", path, re.I
+        )
+        if account_update_match:
+            if not self.require_admin(super_admin=True):
+                return
+            try:
+                body = self.read_json(16384)
+                requested_username = str(body.get("username") or "").strip()
+                if requested_username and secure_token_matches(
+                    requested_username, configured_token("MONITOR_ADMIN_USERNAME")
+                ):
+                    raise ValueError("该账号名称由总管理员使用")
+                account = REMOTE_TASK_QUEUE.update_admin_account(
+                    account_update_match.group(1).lower(), body
+                )
+                if account is None:
+                    self.send_json({"ok": False, "error": "管理员账号不存在"}, 404)
+                    return
+                self.send_json({"ok": True, "account": account})
+            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                self.send_json({"ok": False, "error": str(exc)}, 400)
+            return
+        if path == "/api/admin/paid-monitors":
+            if not self.require_admin(super_admin=True):
+                return
+            try:
+                monitor = REMOTE_TASK_QUEUE.create_paid_monitor(self.read_json(32768))
+                self.send_json({"ok": True, "monitor": monitor}, 201)
+            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                self.send_json({"ok": False, "error": str(exc)}, 400)
+            return
+        paid_monitor_action = re.fullmatch(
+            r"/api/admin/paid-monitors/([a-f0-9]{32})/(pause|resume|rerun|clear)", path, re.I
+        )
+        if paid_monitor_action:
+            if not self.require_admin(super_admin=True):
+                return
+            monitor_id, action = paid_monitor_action.groups()
+            try:
+                if action == "pause":
+                    monitor = REMOTE_TASK_QUEUE.pause_paid_monitor(monitor_id.lower())
+                elif action == "resume":
+                    monitor = REMOTE_TASK_QUEUE.resume_paid_monitor(monitor_id.lower())
+                elif action == "rerun":
+                    monitor = REMOTE_TASK_QUEUE.rerun_paid_monitor(monitor_id.lower())
+                else:
+                    body = self.read_json(8192)
+                    if str(body.get("confirm_user_id") or "").strip() == "":
+                        raise ValueError("请输入付费用户 ID 确认清除")
+                    existing = REMOTE_TASK_QUEUE.get_paid_monitor(monitor_id.lower())
+                    if existing is None:
+                        monitor = None
+                    elif not secure_token_matches(body.get("confirm_user_id"), existing.get("paid_user_id")):
+                        raise ValueError("付费用户 ID 确认不一致")
+                    else:
+                        monitor = REMOTE_TASK_QUEUE.clear_paid_monitor_data(
+                            monitor_id.lower(), Path(BASE_DIR) / "runtime" / "web_results"
+                        )
+                if monitor is None:
+                    self.send_json({"ok": False, "error": "付费用户不存在"}, 404)
+                    return
+                self.send_json({"ok": True, "monitor": monitor})
+            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                self.send_json({"ok": False, "error": str(exc)}, 400)
+            return
+        paid_monitor_update = re.fullmatch(
+            r"/api/admin/paid-monitors/([a-f0-9]{32})", path, re.I
+        )
+        if paid_monitor_update:
+            if not self.require_admin(super_admin=True):
+                return
+            try:
+                monitor = REMOTE_TASK_QUEUE.update_paid_monitor(
+                    paid_monitor_update.group(1).lower(), self.read_json(32768)
+                )
+                if monitor is None:
+                    self.send_json({"ok": False, "error": "付费用户不存在"}, 404)
+                    return
+                self.send_json({"ok": True, "monitor": monitor})
+            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                self.send_json({"ok": False, "error": str(exc)}, 400)
+            return
+        report_sharing_match = re.fullmatch(
+            r"/api/admin/reports/([a-f0-9]{32})/sharing", path, re.I
+        )
+        if report_sharing_match:
+            identity = self.require_admin()
+            if not identity:
+                return
+            report_key = report_sharing_match.group(1).lower()
+            if not self.admin_can_access_report(identity, report_key):
+                self.send_json({"ok": False, "error": "无权管理这份报告"}, 403)
+                return
+            try:
+                body = self.read_json(8192)
+                if not isinstance(body.get("enabled"), bool):
+                    raise ValueError("enabled 必须是布尔值")
+                sharing = REMOTE_TASK_QUEUE.update_report_sharing(
+                    report_key,
+                    enabled=body["enabled"],
+                    expires_at=str(body.get("expires_at") or ""),
+                )
+                self.send_json({"ok": True, "sharing": sharing})
+            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                self.send_json({"ok": False, "error": str(exc)}, 400)
+            return
+        report_delete_match = re.fullmatch(
+            r"/api/admin/reports/([a-f0-9]{32})/delete", path, re.I
+        )
+        if report_delete_match:
+            if not self.require_admin(super_admin=True):
+                return
+            try:
+                body = self.read_json(8192)
+                deleted = REMOTE_TASK_QUEUE.delete_diagnosis_report(
+                    report_delete_match.group(1).lower(),
+                    confirmation=str(body.get("confirm_brand") or ""),
+                    results_root=Path(BASE_DIR) / "runtime" / "web_results",
+                )
+                if deleted is None:
+                    self.send_json({"ok": False, "error": "诊断报告不存在"}, 404)
+                    return
+                self.send_json({"ok": True, "deleted_report_key": report_delete_match.group(1).lower()})
+            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                self.send_json({"ok": False, "error": str(exc)}, 400)
+            return
+        report_edit_match = re.fullmatch(
+            r"/api/admin/reports/([a-f0-9]{32})/edit", path, re.I
+        )
+        if report_edit_match:
+            identity = self.require_admin(super_admin=True)
+            if not identity:
+                return
+            try:
+                editor = REMOTE_TASK_QUEUE.update_diagnosis_report(
+                    report_edit_match.group(1).lower(),
+                    self.read_json(8 * 1024 * 1024),
+                    editor_username=str(identity.get("username") or "总管理员"),
+                )
+                if editor is None:
+                    self.send_json({"ok": False, "error": "诊断报告不存在"}, 404)
+                    return
+                report = REMOTE_TASK_QUEUE.diagnosis_report(
+                    report_edit_match.group(1).lower(), include_readiness=False
+                ).get("report")
+                self.send_json({"ok": True, "editor": editor, "report": report})
+            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                self.send_json({"ok": False, "error": str(exc)}, 400)
+            return
+        report_revert_match = re.fullmatch(
+            r"/api/admin/reports/([a-f0-9]{32})/revert", path, re.I
+        )
+        if report_revert_match:
+            identity = self.require_admin(super_admin=True)
+            if not identity:
+                return
+            try:
+                editor = REMOTE_TASK_QUEUE.revert_diagnosis_report(
+                    report_revert_match.group(1).lower(),
+                    editor_username=str(identity.get("username") or "总管理员"),
+                )
+                if editor is None:
+                    self.send_json({"ok": False, "error": "诊断报告不存在"}, 404)
+                    return
+                report = REMOTE_TASK_QUEUE.diagnosis_report(
+                    report_revert_match.group(1).lower(), include_readiness=False
+                ).get("report")
+                self.send_json({"ok": True, "editor": editor, "report": report})
+            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                self.send_json({"ok": False, "error": str(exc)}, 400)
+            return
         if path == "/api/diagnosis":
             if not self.require_remote_tasks():
+                return
+            identity = self.require_admin()
+            if not identity:
                 return
             try:
                 forwarded = (self.headers.get("X-Forwarded-For") or "").split(",", 1)[0].strip()
@@ -7795,19 +8187,25 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     previous = float(_DIAGNOSIS_LAST_CREATED.get(client_ip) or 0)
                     if moment - previous < 5:
                         raise ValueError("提交过于频繁，请稍后再试")
-                    report_key, task = REMOTE_TASK_QUEUE.create_public_diagnosis(self.read_json())
+                    REMOTE_TASK_QUEUE.assert_diagnosis_allowed(identity)
+                    report_key, task = REMOTE_TASK_QUEUE.create_public_diagnosis(
+                        self.read_json(), account=identity,
+                    )
                     _DIAGNOSIS_LAST_CREATED[client_ip] = moment
+                public_task = (REMOTE_TASK_QUEUE.diagnosis_report(report_key).get("task") or task)
                 self.send_json({
                     "ok": True,
                     "report_key": report_key,
                     "report_path": f"/geo/{report_key}",
-                    "task": task,
+                    "task": public_task,
                 }, 201)
+            except PermissionError as exc:
+                self.send_json({"ok": False, "error": str(exc)}, 403)
             except (ValueError, TypeError, RuntimeError, json.JSONDecodeError) as exc:
                 self.send_json({"ok": False, "error": str(exc)}, 400)
             return
         login_start_match = re.fullmatch(
-            r"/api/logins/(doubao|yuanbao|wenxin)/start", path
+            r"/api/logins/(doubao|yuanbao|wenxin|deepseek|kimi)/start", path
         )
         if login_start_match:
             if not self.require_remote_tasks():
@@ -8008,10 +8406,149 @@ class DashboardHandler(BaseHTTPRequestHandler):
             })
             return
         path = self.path.split("?", 1)[0]
+        if path == "/api/admin/session":
+            identity = self.admin_identity()
+            quota = REMOTE_TASK_QUEUE.diagnosis_quota(identity) if identity else None
+            self.send_json({
+                "ok": True,
+                "authenticated": bool(identity),
+                "username": str((identity or {}).get("username") or ""),
+                "display_name": str((identity or {}).get("display_name") or ""),
+                "role": str((identity or {}).get("role") or ""),
+                "expires_at": str((identity or {}).get("expires_at") or ""),
+                "quota": quota,
+            })
+            return
+        if path == "/api/admin/authorize":
+            identity = self.admin_identity()
+            original_uri = str(self.headers.get("X-Original-URI") or "").split("?", 1)[0]
+            if identity and identity.get("role") == "super_admin":
+                self.send_bytes(b"", "text/plain; charset=utf-8", 204)
+                return
+            if identity:
+                allowed_manager_path = original_uri in {
+                    "/geo", "/geo/", "/geo/admin", "/geo/admin/",
+                }
+                owned_match = re.fullmatch(r"/geo/([a-f0-9]{32})/?", original_uri, re.I)
+                paid_match = re.fullmatch(r"/geo/(paid-[a-f0-9]{24})/?", original_uri, re.I)
+                paid_access = False
+                if paid_match and REMOTE_TASKS_ENABLED:
+                    payload = REMOTE_TASK_QUEUE.paid_monitor_dashboard(paid_match.group(1).lower())
+                    paid_access = bool(payload and payload.get("access_allowed"))
+                if allowed_manager_path or (
+                    owned_match
+                    and self.admin_can_access_report(identity, owned_match.group(1).lower())
+                ) or paid_access:
+                    self.send_bytes(b"", "text/plain; charset=utf-8", 204)
+                    return
+                # An authenticated lower-level administrator is forbidden from
+                # super-admin pages (and from reports owned by other accounts).
+                # Return 403 instead of 401 so Nginx does not send the browser
+                # through the login-page `next` redirect loop.
+                self.send_bytes(b"", "text/plain; charset=utf-8", 403)
+                return
+            # Nginx supplies the original browser URI for its auth subrequest.
+            # A completed report may be shared by its unpredictable 128-bit key;
+            # every other /geo page continues to require an administrator session.
+            public_match = re.fullmatch(r"/geo/([a-f0-9]{32})/?", original_uri, re.I)
+            if public_match and REMOTE_TASKS_ENABLED:
+                try:
+                    public_payload = REMOTE_TASK_QUEUE.diagnosis_report(public_match.group(1).lower())
+                    public_task = (
+                        public_payload.get("task")
+                        if isinstance(public_payload.get("task"), dict)
+                        else None
+                    )
+                    if (
+                        public_task
+                        and str(public_task.get("status") or "") == "completed"
+                        and REMOTE_TASK_QUEUE.report_is_public(public_match.group(1).lower())
+                    ):
+                        self.send_bytes(b"", "text/plain; charset=utf-8", 204)
+                        return
+                except (ValueError, TypeError, json.JSONDecodeError):
+                    pass
+            paid_match = re.fullmatch(r"/geo/(paid-[a-f0-9]{24})/?", original_uri, re.I)
+            if paid_match and REMOTE_TASKS_ENABLED:
+                try:
+                    paid_payload = REMOTE_TASK_QUEUE.paid_monitor_dashboard(
+                        paid_match.group(1).lower()
+                    )
+                    if paid_payload and paid_payload.get("access_allowed"):
+                        self.send_bytes(b"", "text/plain; charset=utf-8", 204)
+                        return
+                except (ValueError, TypeError, json.JSONDecodeError):
+                    pass
+            self.send_bytes(b"", "text/plain; charset=utf-8", 401)
+            return
+        if path == "/api/admin/settings":
+            if not self.require_admin(super_admin=True):
+                return
+            self.send_json({"ok": True, "settings": REMOTE_TASK_QUEUE.service_settings()})
+            return
+        if path == "/api/admin/accounts":
+            if not self.require_admin(super_admin=True):
+                return
+            self.send_json({
+                "ok": True,
+                "accounts": REMOTE_TASK_QUEUE.list_admin_accounts(),
+            })
+            return
+        if path == "/api/admin/paid-monitors":
+            if not self.require_admin(super_admin=True):
+                return
+            self.send_json({"ok": True, "monitors": REMOTE_TASK_QUEUE.list_paid_monitors()})
+            return
+        report_editor_match = re.fullmatch(
+            r"/api/admin/reports/([a-f0-9]{32})/editor", path, re.I
+        )
+        if report_editor_match:
+            if not self.require_admin(super_admin=True):
+                return
+            try:
+                editor = REMOTE_TASK_QUEUE.report_editor_data(
+                    report_editor_match.group(1).lower()
+                )
+                if editor is None:
+                    self.send_json({"ok": False, "error": "诊断报告不存在"}, 404)
+                    return
+                self.send_json({"ok": True, "editor": editor})
+            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                self.send_json({"ok": False, "error": str(exc)}, 400)
+            return
+        if path == "/api/admin/reports":
+            identity = self.require_admin()
+            if not identity:
+                return
+            is_super_admin = identity.get("role") == "super_admin"
+            self.send_json({
+                "ok": True,
+                "reports": REMOTE_TASK_QUEUE.completed_diagnosis_reports(
+                    1000,
+                    owner_account_id=None if is_super_admin else str(identity.get("id") or ""),
+                ),
+                "settings": REMOTE_TASK_QUEUE.service_settings() if is_super_admin else {},
+                "account": {
+                    "username": identity.get("username"),
+                    "display_name": identity.get("display_name"),
+                    "role": identity.get("role"),
+                    "expires_at": identity.get("expires_at"),
+                    "quota": REMOTE_TASK_QUEUE.diagnosis_quota(identity),
+                },
+            })
+            return
         if path == "/api/diagnosis":
             if not self.require_remote_tasks():
                 return
-            self.send_json({"ok": True, "readiness": REMOTE_TASK_QUEUE.diagnosis_readiness()})
+            identity = self.require_admin()
+            if not identity:
+                return
+            self.send_json({
+                "ok": True,
+                "readiness": REMOTE_TASK_QUEUE.diagnosis_readiness(),
+                "settings": REMOTE_TASK_QUEUE.service_settings(),
+                "quota": REMOTE_TASK_QUEUE.diagnosis_quota(identity),
+            })
             return
         # Public reports are addressed only by server-generated 128-bit keys.
         # Legacy customer slugs must never expose stale, failed or cancelled jobs.
@@ -8021,14 +8558,60 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return
             try:
                 payload = REMOTE_TASK_QUEUE.diagnosis_report(diagnosis_match.group(1))
-                if payload.get("task") is None:
+                task = payload.get("task") if isinstance(payload.get("task"), dict) else None
+                if task is None:
                     self.send_json({"ok": False, "error": "诊断报告不存在"}, 404)
+                    return
+                identity = self.admin_identity()
+                is_admin = self.admin_can_access_report(
+                    identity, diagnosis_match.group(1).lower()
+                )
+                if (
+                    not is_admin
+                    and (
+                        str(task.get("status") or "") != "completed"
+                        or not REMOTE_TASK_QUEUE.report_is_public(diagnosis_match.group(1))
+                    )
+                ):
+                    # Do not reveal whether a random key belongs to a queued,
+                    # running, failed or cancelled task.
+                    self.send_json({"ok": False, "error": "诊断报告不存在"}, 404)
+                    return
+                if not is_admin:
+                    payload = {
+                        "customer_slug": payload.get("customer_slug"),
+                        "task": task,
+                        "history": [],
+                        "readiness": {
+                            "ready": False, "online": False, "worker_id": "",
+                            "models": {}, "message": "",
+                        },
+                        "report": payload.get("report"),
+                    }
+                self.send_json({"ok": True, **payload})
+            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                self.send_json({"ok": False, "error": str(exc)}, 400)
+            return
+        paid_monitor_public_match = re.fullmatch(
+            r"/api/paid-monitor/(paid-[a-f0-9]{24})", path, re.I
+        )
+        if paid_monitor_public_match:
+            if not self.require_remote_tasks():
+                return
+            try:
+                payload = REMOTE_TASK_QUEUE.paid_monitor_dashboard(
+                    paid_monitor_public_match.group(1).lower()
+                )
+                if not payload or not payload.get("access_allowed"):
+                    self.send_json({"ok": False, "error": "监控面板不存在或已到期"}, 404)
                     return
                 self.send_json({"ok": True, **payload})
             except (ValueError, TypeError, json.JSONDecodeError) as exc:
                 self.send_json({"ok": False, "error": str(exc)}, 400)
             return
         if path == "/tasks":
+            if not self.require_admin(super_admin=True):
+                return
             self.send_bytes(task_page_html().encode("utf-8"), "text/html; charset=utf-8")
             return
         if path == "/api/logins":

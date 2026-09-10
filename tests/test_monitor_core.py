@@ -9,7 +9,7 @@ from monitor_core.cdp_chat import CDPPage, external_sources
 from monitor_core.owned_products import OWN_PRODUCT_RULES, OWN_PRODUCT_SCHEMA_VERSION, own_product_mentions, owned_product_recommendations, owned_products_for_question
 from monitor_core.product_analysis import merge_explicit_owned_products
 from monitor_core.plugins import discover_plugins
-from monitor_core.quality import answer_quality_reason, invalid_answer_reason
+from monitor_core.quality import answer_quality_reason, invalid_answer_reason, repair_fragmented_answer
 from monitor_core.jsonl_dashboard import build_jsonl_dashboard
 from monitor_core.recommendation_questions import (
     CANONICAL_QUESTIONS,
@@ -356,6 +356,26 @@ class QualityTests(unittest.TestCase):
         self.assertTrue(invalid_answer_reason("好的"))
         self.assertTrue(invalid_answer_reason("系统异常，请稍后重试"))
 
+    def test_fragmented_answer_repair_is_gated_and_deterministic(self):
+        broken = (
+            "选购时注意区分\n\n火山口结\n构\n\n和\n\n剪刀脚结\n构\n\n"
+            "两种结构的手感不同，办公场景优先考虑静音和稳定。\n\n"
+            "CHERRY DW230\n0\n/STREAM 系列"
+        )
+        repaired = repair_fragmented_answer(broken, provider="wenxin")
+        self.assertIn("选购时注意区分火山口结构和剪刀脚结构两种结构", repaired)
+        self.assertIn("CHERRY DW2300/STREAM 系列", repaired)
+        normal = "推荐型号\n1\n\n产品说明完整。\n\n选择建议"
+        self.assertEqual(repair_fragmented_answer(normal, provider="wenxin"), normal)
+
+    def test_fragmented_answer_repair_ignores_dense_numeric_citations(self):
+        cited = (
+            "HyperX EVE 1800\n1\n\n5\n入门电竞，手感安静\n1\n\n5\n。\n\n"
+            "Corsair SKIFF 100 PLUS\n7\n功能完整，适合游戏和办公\n7\n。\n\n"
+            "选择建议：请结合预算和键位布局。"
+        )
+        self.assertEqual(repair_fragmented_answer(cited, provider="deepseek"), cited)
+
     def test_product_recommendation_refusal_is_skipped(self):
         self.assertEqual(
             invalid_answer_reason("面膜不在我的医疗健康服务范围内，我只能回答健康问题。"),
@@ -381,6 +401,22 @@ class QualityTests(unittest.TestCase):
             "针对闭口粉刺和突发红肿痘的催熟速度较快，适合健康耐受油皮使用。"
         )
         self.assertFalse(answer_quality_reason("推荐一款祛痘精华液", answer))
+
+    def test_pregnancy_yoghurt_semantic_wording_is_accepted(self):
+        from monitor_core.quality import answer_quality_reason
+        answer = (
+            "怀孕期间可以选择配料简单、低糖且经过巴氏杀菌的发酵乳，"
+            "购买时注意冷链保存并查看蛋白质和糖含量。"
+        )
+        self.assertFalse(answer_quality_reason("推荐一款孕妇喝的酸奶推荐", answer))
+        self.assertTrue(answer_quality_reason(
+            "推荐一款孕妇喝的酸奶推荐",
+            "孕期应注意均衡饮食，并在医生指导下补充叶酸和铁元素。",
+        ))
+        self.assertTrue(answer_quality_reason(
+            "推荐一款孕妇喝的酸奶推荐",
+            "这款常温酸奶口感醇厚，适合普通家庭作为早餐搭配。",
+        ))
 
     def test_unrelated_serum_is_still_rejected_for_acne_topic(self):
         from monitor_core.quality import answer_quality_reason
@@ -1301,9 +1337,9 @@ class AnalyticsTests(unittest.TestCase):
 
     def test_models_are_discovered_from_isolated_plugin_directories(self):
         plugins = discover_plugins()
-        self.assertEqual(set(plugins), {"deepseek", "doubao", "quark", "wenxin", "yuanbao"})
+        self.assertEqual(set(plugins), {"deepseek", "doubao", "kimi", "quark", "wenxin", "yuanbao"})
         self.assertEqual(plugins["doubao"].execution, "local")
-        self.assertEqual(plugins["quark"].name, "夸克")
+        self.assertEqual(plugins["quark"].name, "千问")
         self.assertFalse(plugins["quark"].ingest_only)
         self.assertTrue(plugins["quark"].supports_control)
 
@@ -1546,7 +1582,7 @@ class KeywordAnalyticsTests(unittest.TestCase):
 class PluginCommandTests(unittest.TestCase):
     def test_all_models_use_the_shared_web_loop(self):
         plugins = discover_plugins()
-        self.assertEqual(set(plugins), {"doubao", "yuanbao", "wenxin", "deepseek", "quark"})
+        self.assertEqual(set(plugins), {"doubao", "yuanbao", "wenxin", "deepseek", "kimi", "quark"})
         for model_id, plugin in plugins.items():
             command, workdir = plugin.command({"rounds": 3, "question_mode": "sequential"})
             self.assertEqual(command[1:3], ["-m", "web_collectors.loop"])

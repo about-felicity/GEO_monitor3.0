@@ -512,7 +512,7 @@ function CommonSourceIntersections({
                   {!!item.model_counts.yuanbao && <span className="yuanbao">元宝 <b>{item.model_counts.yuanbao}</b></span>}
                   {!!item.model_counts.wenxin && <span className="wenxin">文心 <b>{item.model_counts.wenxin}</b></span>}
                   {!!item.model_counts.deepseek && <span className="deepseek">DeepSeek <b>{item.model_counts.deepseek}</b></span>}
-                  {!!item.model_counts.quark && <span className="quark">夸克 <b>{item.model_counts.quark}</b></span>}
+                  {!!item.model_counts.quark && <span className="quark">千问 <b>{item.model_counts.quark}</b></span>}
                   <em>合计 {item.total_count}</em>
                 </div>
               </div>

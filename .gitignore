@@ -4,6 +4,7 @@
 /vps_config.txt
 /ds_apikey.txt
 /config/deepseek_api_key.secret
+/config/worker_token.secret
 **/.env
 /deploy/server/server.env
 /deploy/hybrid/server.env

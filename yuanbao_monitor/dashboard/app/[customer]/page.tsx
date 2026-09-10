@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { DiagnosisDashboard } from "../DiagnosisDashboard";
+import { PaidCustomerDashboard } from "../PaidCustomerDashboard";
 
 const REPORT_KEY_PATTERN = /^[a-f0-9]{32}$/;
+const PAID_MONITOR_PATTERN = /^paid-[a-f0-9]{24}$/;
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -22,19 +25,24 @@ export default async function CustomerDashboard({ params }: { params: Promise<{ 
   const reportKey = customer.toLowerCase();
   const rootPath = publicRootUrl();
 
-  if (!REPORT_KEY_PATTERN.test(reportKey)) redirect(rootPath);
+  const isPaidMonitor = PAID_MONITOR_PATTERN.test(reportKey);
+  if (!isPaidMonitor && !REPORT_KEY_PATTERN.test(reportKey)) redirect(rootPath);
 
   let shouldRedirect = false;
   try {
     const apiPort = process.env.DOUBAO_DASHBOARD_PORT || "8765";
-    const response = await fetch(`http://127.0.0.1:${apiPort}/api/diagnosis/${reportKey}`, {
+    const requestHeaders = await headers();
+    const cookie = requestHeaders.get("cookie") || "";
+    const endpoint = isPaidMonitor ? `/api/paid-monitor/${reportKey}` : `/api/diagnosis/${reportKey}`;
+    const response = await fetch(`http://127.0.0.1:${apiPort}${endpoint}`, {
       cache: "no-store",
+      headers: cookie ? { Cookie: cookie } : undefined,
     });
 
     if (response.status === 404) shouldRedirect = true;
     if (response.ok) {
       const payload = await response.json();
-      if (payload?.task?.status !== "completed") shouldRedirect = true;
+      if (isPaidMonitor ? !payload?.access_allowed : payload?.task?.status !== "completed") shouldRedirect = true;
     }
   } catch (reason) {
     // A transient internal API failure should not turn a valid completed report
@@ -44,5 +52,7 @@ export default async function CustomerDashboard({ params }: { params: Promise<{ 
 
   if (shouldRedirect) redirect(rootPath);
 
-  return <DiagnosisDashboard customerSlug={reportKey} />;
+  return isPaidMonitor
+    ? <PaidCustomerDashboard customerSlug={reportKey} />
+    : <DiagnosisDashboard customerSlug={reportKey} />;
 }

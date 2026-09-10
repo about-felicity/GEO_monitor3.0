@@ -47,8 +47,18 @@ SITES = {
         (".ds-markdown", "[class*='ds-markdown']", "main [class*='markdown']", "[class*='message'] [class*='markdown']"),
         ("登录", "Sign in", "Log in"),
     ),
+    "kimi": SiteConfig(
+        "kimi", "Kimi", "https://www.kimi.com/", 9316,
+        ("kimi.com", "kimi.ai", "moonshot.cn", "moonshot.ai"), COMMON_INPUTS,
+        (
+            "main [class*='markdown']", "main [class*='message']",
+            "[class*='chat-content'] [class*='markdown']",
+            "[class*='assistant'] [class*='content']",
+        ),
+        ("登录", "扫码登录", "手机号登录", "Log in", "Sign in"),
+    ),
     "quark": SiteConfig(
-        "quark", "夸克", "https://ai.quark.cn/", 9315,
+        "quark", "千问", "https://ai.quark.cn/", 9315,
         ("quark.cn", "uc.cn", "alibaba.com"), COMMON_INPUTS,
         ("main [class*='answer']", "main [class*='markdown']", "[class*='message'] [class*='content']", "[class*='result'] [class*='content']"),
         ("登录", "扫码登录", "手机号登录"),

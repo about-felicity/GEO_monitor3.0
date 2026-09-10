@@ -19,6 +19,71 @@ def normalize_text(value: str) -> str:
     return re.sub(r"\s+", "", str(value or "")).casefold()
 
 
+_VISUAL_FRAGMENT_LINE = re.compile(r"^[\w\u3400-\u9fff]{1,5}$", re.UNICODE)
+_STRUCTURAL_SHORT_LINE = re.compile(r"^(?:\d{1,3}|[·•\-–—。；;，,、:：])$")
+_SEMANTIC_CONTINUATION = re.compile(
+    r"(?:主要看|注意区分|包括|例如|比如|选择|可选|优先选|推荐选|"
+    r"或|和|与|及|、|，|,|：|:|（|\(|结构)$",
+    re.I,
+)
+_LEADING_CONTINUATION = re.compile(r"^[，。！？；：、,.!?;:）)]")
+
+
+def repair_fragmented_answer(value: str, *, provider: str) -> str:
+    """Repair visual DOM line wraps without reformatting normal model answers.
+
+    Some provider pages render words as several inline DOM nodes.  ``innerText``
+    then exposes those visual wraps as real newlines (for example ``罗\n技`` or
+    ``MX Key\ns``).  The repair is deliberately gated by several adjacent tiny
+    lexical lines, so citation numbers, bullets and legitimate short headings
+    from other providers retain their original structure.
+    """
+    text = str(value or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not text:
+        return ""
+    # The malformed inline-node layout is currently specific to Wenxin. Keep
+    # every other provider byte-for-byte stable even if its answer legitimately
+    # contains dense citations, bullets, a table or several short headings.
+    if str(provider or "").strip().casefold() != "wenxin":
+        return text
+
+    nonempty = [line.strip() for line in text.split("\n") if line.strip()]
+    fragment_flags = [
+        bool(_VISUAL_FRAGMENT_LINE.fullmatch(line))
+        and not _STRUCTURAL_SHORT_LINE.fullmatch(line)
+        for line in nonempty
+    ]
+    tiny_count = sum(fragment_flags)
+    adjacent_pairs = sum(
+        1 for index in range(1, len(nonempty))
+        if fragment_flags[index - 1] and fragment_flags[index]
+    )
+    if tiny_count < 5 or adjacent_pairs < 4:
+        return text
+
+    blocks = []
+    for raw_block in re.split(r"\n\s*\n+", text):
+        lines = [line.strip() for line in raw_block.split("\n") if line.strip()]
+        if lines:
+            # These are visual wraps inside one semantic block, not paragraphs.
+            blocks.append("".join(lines))
+
+    repaired: list[str] = []
+    for block in blocks:
+        if repaired and (
+            _LEADING_CONTINUATION.search(block)
+            or _SEMANTIC_CONTINUATION.search(repaired[-1])
+            or block in {"和", "或", "与", "及", "、"}
+        ):
+            repaired[-1] += block
+        else:
+            repaired.append(block)
+
+    result = "\n\n".join(repaired)
+    result = re.sub(r"[ \t]+([，。！？；：、])", r"\1", result)
+    return result.strip()
+
+
 def invalid_answer_reason(value: str, *, minimum_length: int = 12) -> str:
     text = str(value or "").strip()
     compact = normalize_text(text)
@@ -75,6 +140,15 @@ def topic_matches(topic: str, body: str) -> bool:
         "祛痘精华": (
             ("祛痘", "抗痘", "净痘", "痘痘", "痘肌", "痤疮", "闭口", "粉刺", "红肿痘", "爆痘"),
             ("精华", "水杨酸", "壬二酸", "果酸", "杏仁酸", "三酸"),
+        ),
+        # Models commonly answer “孕妇喝的酸奶” using the medically natural
+        # wording “孕期/怀孕期间可饮用发酵乳”.  Requiring the literal bigram
+        # “孕妇” discarded correct answers and caused all retries to repeat.
+        # Both the audience and product groups remain mandatory so unrelated
+        # pregnancy advice or ordinary yoghurt copy cannot pass on its own.
+        "孕妇喝的酸奶": (
+            ("孕妇", "孕期", "怀孕", "妊娠", "准妈妈"),
+            ("酸奶", "酸牛奶", "发酵乳", "乳酸菌饮品"),
         ),
     }
     evidence_groups = semantic_evidence_groups.get(topic, ())

@@ -1,5 +1,5 @@
-import { Dashboard } from "../Dashboard";
+import { DiagnosisAdmin } from "../DiagnosisAdmin";
 
 export default function AdminDashboard() {
-  return <Dashboard />;
+  return <DiagnosisAdmin />;
 }

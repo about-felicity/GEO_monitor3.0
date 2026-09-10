@@ -14,6 +14,8 @@ ProgressCallback = Callable[[str], None]
 @dataclass(slots=True)
 class CapturedAnswer:
     body: str
+    captured_question: str = ""
+    capture_identity: str = ""
     sources: list[dict[str, Any]] = field(default_factory=list)
     page_url: str = ""
     expected_source_count: int = 0
@@ -118,6 +120,8 @@ def build_record(
         "round": round_number,
         "question": question,
         "prompt": question,
+        "captured_question": captured.captured_question,
+        "capture_identity": captured.capture_identity,
         "reply": captured.body,
         "web_body": captured.body,
         "sources": captured.sources,
@@ -152,4 +156,3 @@ def build_record(
             "analyzed_at": analysis.analyzed_at,
         },
     }
-

@@ -1,6 +1,10 @@
 import json
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
+
+from windows_worker_sdk.protocol import ServerClient
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -8,6 +12,24 @@ EXTENSION = ROOT / "geo_chrome_extension"
 
 
 class ChromeExtensionTests(unittest.TestCase):
+    def test_enterprise_worker_ignores_stale_system_proxy(self):
+        client = ServerClient("https://www.ifbcy.com/geo", "test-token")
+        self.assertFalse(client._session().trust_env)
+
+    def test_worker_writes_server_connectivity_marker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "connection.json"
+            with mock.patch.dict("os.environ", {"GEO_CONNECTION_HEALTH_PATH": str(target)}):
+                client = ServerClient("https://www.ifbcy.com/geo", "test-token")
+                client._record_connectivity(True)
+            payload = json.loads(target.read_text(encoding="utf-8"))
+            self.assertTrue(payload["connected"])
+
+    def test_kimi_capture_excludes_tool_search_markdown_without_legacy_wrapper(self):
+        source = (ROOT / "web_collectors" / "collector.py").read_text(encoding="utf-8")
+        self.assertIn("document.querySelectorAll('main .markdown, .markdown')", source)
+        self.assertIn("!el.closest('.toolcall-content')", source)
+
     def test_manifest_covers_three_models_and_server(self):
         manifest = json.loads((EXTENSION / "manifest.json").read_text(encoding="utf-8"))
         matches = manifest["content_scripts"][0]["matches"]
@@ -119,6 +141,9 @@ class ChromeExtensionTests(unittest.TestCase):
         self.assertIn("questionLinked", source)
         self.assertIn("declaredSourceCount", source)
         self.assertIn("conversationTail", source)
+        self.assertIn("navigationFreeBody", source)
+        self.assertIn("历史会话", source)
+        self.assertNotIn('if (MODEL !== "quark")', source)
         self.assertIn("busySelectors", source)
         self.assertNotIn("/正在生成|思考中|搜索中|停止生成", source)
         self.assertIn("element.contains(activeInput)", source)

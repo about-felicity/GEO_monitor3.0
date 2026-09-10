@@ -37,6 +37,10 @@ def cookie_env_name(model: str) -> str:
     return f"MONITOR_{str(model).strip().upper()}_COOKIES_JSON"
 
 
+def storage_env_name(model: str) -> str:
+    return f"MONITOR_{str(model).strip().upper()}_STORAGE_JSON"
+
+
 def session_cookies(site: SiteConfig) -> list[dict[str, Any]]:
     """Load browser cookies from process memory without writing them to disk."""
     raw = str(os.environ.get(cookie_env_name(site.id)) or "").strip()
@@ -111,11 +115,16 @@ class BrowserHandle:
 def launch_browser(site: SiteConfig, *, headless: bool) -> BrowserHandle:
     if port_open(site.port):
         raise RuntimeError(f"{site.name} 调试端口 {site.port} 已被占用；请先停止旧采集进程")
-    session_root = _session_root()
-    for stale in session_root.glob(f"{site.id}-*"):
-        if stale.is_dir():
-            shutil.rmtree(stale, ignore_errors=True)
-    profile = Path(tempfile.mkdtemp(prefix=f"{site.id}-", dir=session_root))
+    persistent = site.id in {"deepseek", "kimi"}
+    if persistent:
+        profile = ROOT / "runtime" / "web_profiles" / site.id
+        profile.mkdir(parents=True, exist_ok=True)
+    else:
+        session_root = _session_root()
+        for stale in session_root.glob(f"{site.id}-*"):
+            if stale.is_dir():
+                shutil.rmtree(stale, ignore_errors=True)
+        profile = Path(tempfile.mkdtemp(prefix=f"{site.id}-", dir=session_root))
     command = [
         str(chrome_executable()),
         f"--remote-debugging-port={site.port}",
@@ -124,10 +133,11 @@ def launch_browser(site: SiteConfig, *, headless: bool) -> BrowserHandle:
         "--no-default-browser-check",
         "--disable-blink-features=AutomationControlled",
         "--disable-background-networking",
-        "--incognito",
         "--window-size=1440,1100",
         f"--user-data-dir={profile}",
     ]
+    if not persistent:
+        command.append("--incognito")
     if headless:
         command.extend(("--headless=new", "--disable-gpu"))
     command.extend(("--new-window", site.home_url))
@@ -156,7 +166,12 @@ def launch_browser(site: SiteConfig, *, headless: bool) -> BrowserHandle:
             pass
         shutil.rmtree(profile, ignore_errors=True)
         raise RuntimeError(f"{site.name} Chrome 启动超时（端口 {site.port}）")
-    return BrowserHandle(site=site, process=process, profile=profile, owned=True)
+    return BrowserHandle(
+        site=site,
+        process=process,
+        profile=None if persistent else profile,
+        owned=True,
+    )
 
 
 class SitePage(CDPPage):

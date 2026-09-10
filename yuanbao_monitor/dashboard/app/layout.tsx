@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { SiteAuthGate } from "./SiteAuthGate";
 
 export const metadata: Metadata = {
-  title: "模型情报台 · 多模型监控",
-  description: "按模型、问题与日期统一查看回答、信源排行和关键词洞察的本地监控面板",
+  title: "GEO Monitor · AI 品牌推荐诊断",
+  description: "面向企业的多模型品牌推荐诊断、信源洞察与持续监测平台",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body><SiteAuthGate>{children}</SiteAuthGate></body>
     </html>
   );
 }

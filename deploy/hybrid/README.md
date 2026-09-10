@@ -15,6 +15,12 @@ openssl rand -hex 32
 把两次生成的值分别写入 `MONITOR_TASK_API_TOKEN` 和
 `MONITOR_WORKER_TOKEN`，然后启动：
 
+管理员报告中心还需要配置 `MONITOR_ADMIN_USERNAME`、
+`MONITOR_ADMIN_PASSWORD_HASH` 和 `MONITOR_ADMIN_SESSION_SECRET`。密码只能保存为
+PBKDF2-SHA256 哈希，且其中的 `$` 在 Compose env 文件里必须写成 `$$`；不能把
+明文密码写入 `server.env`。管理员可在 `/geo/admin`
+查看全部诊断报告并调整后续任务的默认轮数。
+
 ```bash
 docker compose up -d --build
 curl -fsS http://127.0.0.1:8876/api/health
