@@ -1,6 +1,6 @@
 # 本地采集 + 服务器面板
 
-此部署不在服务器安装 Chrome，也不运行五模型采集器。服务器只运行 React
+此部署不在服务器安装 Chrome、模拟器或模型采集器。服务器只运行 React
 面板、任务队列和结果接收 API；办公室电脑主动通过 HTTPS 领取任务。
 
 ## 1. 服务端
@@ -62,7 +62,12 @@ server {
 
 ## 2. 本机 Worker
 
-复制 `config/remote_worker.env.example` 为 `config/remote_worker.env`：
+当前生产 Worker 使用 `config/worker_token.secret` 保存 Worker Token，并由
+`scripts/run_windows_enterprise_worker.ps1` 设置服务器地址、Worker ID、六模型
+采集器和本地分析器。该文件、浏览器 profile、模拟器数据和登录状态均不得提交 Git。
+
+如使用兼容 Worker，可复制 `config/remote_worker.env.example` 为
+`config/remote_worker.env`：
 
 ```env
 MONITOR_TASK_SERVER=https://panel.example.com
@@ -70,15 +75,14 @@ MONITOR_WORKER_TOKEN=服务端的独立Worker密钥
 MONITOR_WORKER_ID=office-desktop
 ```
 
-双击 `启动远程任务采集代理.bat`。本机只发起出站 HTTPS 请求，不需要公网
-IP、端口映射或关闭防火墙。五个模型的 Cookie 只通过本机 Worker 的进程
-环境临时提供，不保存浏览器 profile。
+本机只发起出站 HTTPS 请求，不需要公网 IP、端口映射或关闭防火墙。当前六模型
+企业 Worker 的详细软件、模拟器、Android、端口和登录要求以项目根目录
+`README.md` 为准。
 
 ## 3. 用户操作
 
-用户打开 `https://panel.example.com/tasks`，输入任务访问密钥，选择模型、问题
-和轮数后提交。任务默认限制为最多 10 个问题、每题 3 轮；本机 Worker 全局
-顺序执行，关机期间任务保持排队。
+用户通过公开诊断页提交品牌、产品和问题；管理员也可在任务管理页创建受控任务。
+本机 Worker 全局只领取一个活动任务，任务内部六模型并行，关机期间任务保持排队。
 
 ## 安全边界
 

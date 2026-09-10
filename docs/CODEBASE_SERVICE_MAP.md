@@ -12,11 +12,11 @@
 
 服务器不需要 Chrome、Cookie、Scrapling、Playwright、模型登录或 DeepSeek Key。
 
-## 2. 当前 Mac 采集代码
+## 2. 兼容与历史采集代码
 
 | 文件/目录 | 作用 | Windows 重写决策 |
 | --- | --- | --- |
-| `geo_chrome_extension/` | 旧三模型 Chrome 插件 | 不作为新 Worker 依赖 |
+| `geo_chrome_extension/` | 兼容 Chrome 插件 | 不作为当前企业 Worker 主入口 |
 | `web_collectors/remote_worker.py` | 旧 Python Worker 与协议参考 | 仅参考协议/字段 |
 | `web_collectors/browser.py` | Cookie 隐身浏览器管理 | 重新实现 |
 | `web_collectors/collector.py` | 页面输入、正文、信源采集 | 重新实现 |
@@ -36,7 +36,7 @@
 | `product_ai_worker.py` | 异步产品分析 Worker | 若 Windows 需要独立队列可复用思路 |
 | `monitor_core/database.py` | 可选 PostgreSQL 存储 | Windows 本地可不启用 |
 
-## 4. 新 Windows 代码
+## 4. 当前 Windows 生产代码
 
 | 文件 | 作用 |
 | --- | --- |
@@ -46,14 +46,19 @@
 | `windows_worker_sdk/collector_template.py` | 新抓取和分析实现模板 |
 | `windows_worker_sdk/__main__.py` | 常驻 Worker 命令入口 |
 | `windows_worker_sdk/.env.example` | 不含密钥的配置模板 |
+| `windows_enterprise_worker/collectors.py` | 豆包、元宝、文心、千问、DeepSeek、Kimi 六模型采集路由 |
+| `windows_enterprise_worker/analyzer.py` | 本地品牌、产品、推荐、排名和竞品分析 |
+| `windows_enterprise_worker/supervisor.py` | MEmu、ADB、App 内存、主机资源和受管浏览器监管 |
+| `windows_enterprise_worker/yuanbao_burst.py` | 元宝逐轮模拟器提问与 Chrome 正文、信源回收 |
+| `scripts/run_windows_enterprise_worker.ps1` | 生产 Worker 常驻启动和日志轮转 |
+| `scripts/watch_windows_enterprise_worker.ps1` | 心跳异常自动恢复与千问运行环境守护 |
 
 ## 5. 运行时目录
 
 | 位置 | 所有者 | 内容 | Git |
 | --- | --- | --- | --- |
 | 服务器 `deploy/hybrid/runtime/` | 服务器 | SQLite 队列、日志、报告缓存 | 禁止 |
-| Mac `runtime/` | 旧 Worker | 虚拟环境、结果、状态、浏览器临时资料 | 禁止 |
-| Windows `windows_worker_sdk/data/` | 新 Worker | 本地原始结果、错误、重传状态 | 禁止 |
+| Windows `runtime/` | 当前 Worker | spool、健康状态、浏览器 profile、结果和日志 | 禁止 |
 
 ## 6. 典型调用链
 
@@ -84,4 +89,3 @@ DiagnosisDashboard.tsx
 - 改回传字段或隐私边界：必须同时改 `remote_tasks.py`、API 文档、报告前端和回归测试。
 - 改队列状态：必须覆盖暂停、恢复、取消、租约过期和幂等重传测试。
 - 改客户报告：必须保留逐轮正文、全部信源和完整性可追溯性。
-
