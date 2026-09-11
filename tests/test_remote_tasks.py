@@ -305,7 +305,7 @@ class RemoteTaskQueueTests(unittest.TestCase):
         self.assertFalse(secure_token_matches("same", "different"))
         self.assertFalse(secure_token_matches("", ""))
 
-    def test_customer_diagnosis_collects_five_models_and_mirrors_kimi_in_report(self):
+    def test_customer_diagnosis_collects_six_independent_models(self):
         self.queue.claim("desktop-one", {
             model: {"ready": True, "message": "ok"}
             for model in ("doubao", "yuanbao", "wenxin", "quark", "deepseek", "kimi")
@@ -317,12 +317,12 @@ class RemoteTaskQueueTests(unittest.TestCase):
         })
         self.assertEqual(
             task["models"],
-            ["doubao", "yuanbao", "wenxin", "quark", "deepseek"],
+            ["doubao", "yuanbao", "wenxin", "quark", "deepseek", "kimi"],
         )
         self.assertEqual(task["rounds"], 3)
-        self.assertEqual(task["total_steps"], 14)
+        self.assertEqual(task["total_steps"], 16)
         self.assertEqual(task["model_progress"]["deepseek"]["total"], 2)
-        self.assertNotIn("kimi", task["model_progress"])
+        self.assertEqual(task["model_progress"]["kimi"]["total"], 2)
         self.assertEqual(task["customer_slug"], "dianjiezhi")
         self.assertEqual(
             self.queue.create_diagnosis("dianjiezhi", {
@@ -371,7 +371,7 @@ class RemoteTaskQueueTests(unittest.TestCase):
         )
         self.assertEqual(model_report["recommendation_rate"], report["report"]["overall_rate"])
         self.assertEqual(
-            report["report"]["probability_adjustment"]["kimi_overall_weight"], 0,
+            report["report"]["probability_adjustment"]["kimi_overall_weight"], 1,
         )
         self.assertEqual(report["report"]["models"][0]["average_rank"], 2.0)
         self.assertLessEqual(
@@ -442,13 +442,13 @@ class RemoteTaskQueueTests(unittest.TestCase):
         self.assertGreater(by_name["北京碧水源科技股份有限公司"]["model_visibility"]["quark"], 0)
         self.assertIn("quark", by_name["北京碧水源科技股份有限公司"]["mention_models"])
 
-    def test_deepseek_answers_replace_old_kimi_rows_in_temporary_mirror_mode(self):
+    def test_legacy_report_without_scheduled_kimi_keeps_historical_mirror(self):
         self.queue.claim("desktop-one", {
             model: {"ready": True, "message": "ok"}
             for model in ("doubao", "yuanbao", "wenxin", "quark", "deepseek")
         })
         task = self.queue.create({
-            "models": ["deepseek", "kimi"], "questions": ["推荐测试产品"], "rounds": 3,
+            "models": ["deepseek"], "questions": ["推荐测试产品"], "rounds": 3,
             "question_mode": "sequential", "customer_slug": "kimi-mirror",
             "brand_name": "测试品牌", "product_name": "测试产品", "task_kind": "diagnosis",
         })
@@ -464,24 +464,14 @@ class RemoteTaskQueueTests(unittest.TestCase):
             },
             self.root / "results",
         )
-        self.queue.accept_result(
-            task["id"], claimed["lease_token"], "kimi", "kimi-old-1", {
-                "collector_model": "kimi", "round": 1, "question": "推荐测试产品",
-                "reply": "这条旧 Kimi 回答不应进入报告。", "analysis": {}, "sources": [],
-                "body_capture_complete": True, "expected_source_count": 0,
-                "source_capture_complete": True,
-            },
-            self.root / "results",
-        )
         report = self.queue.diagnosis_report("kimi-mirror")["report"]
         deepseek_answers = [item for item in report["answers"] if item["model"] == "deepseek"]
         kimi_answers = [item for item in report["answers"] if item["model"] == "kimi"]
         self.assertEqual(len(deepseek_answers), 1)
         self.assertEqual(len(kimi_answers), 1)
         self.assertEqual(kimi_answers[0]["answer"], deepseek_answers[0]["answer"])
-        self.assertNotIn("旧 Kimi", kimi_answers[0]["answer"])
         self.assertEqual(kimi_answers[0]["sources"], deepseek_answers[0]["sources"])
-        self.assertEqual(report["target_rounds"], 14)
+        self.assertEqual(report["target_rounds"], 2)
         self.assertEqual(report["completed_rounds"], 1)
         deepseek_model = next(item for item in report["models"] if item["id"] == "deepseek")
         kimi_model = next(item for item in report["models"] if item["id"] == "kimi")
@@ -493,6 +483,38 @@ class RemoteTaskQueueTests(unittest.TestCase):
         self.assertFalse(kimi_model["independent"])
         self.assertEqual(kimi_model["data_source"], "deepseek_mirror")
         self.assertIn("kimi", report["sources"][0]["models"])
+
+    def test_new_report_uses_independent_kimi_evidence_and_weight(self):
+        task = self.queue.create({
+            "models": ["deepseek", "kimi"], "questions": ["推荐测试产品"], "rounds": 1,
+            "question_mode": "sequential", "customer_slug": "kimi-independent",
+            "brand_name": "测试品牌", "product_name": "测试产品", "task_kind": "diagnosis",
+        })
+        claimed = self.queue.claim("desktop-one", {
+            "deepseek": {"ready": True}, "kimi": {"ready": True},
+        })
+        common = {
+            "round": 1, "question": "推荐测试产品", "body_capture_complete": True,
+            "expected_source_count": 1, "source_capture_complete": True,
+        }
+        self.queue.accept_result(task["id"], claimed["lease_token"], "deepseek", "direct-deepseek", {
+            **common, "collector_model": "deepseek", "reply": "DeepSeek 推荐测试品牌。",
+            "analysis": {"mode": "local", "recommended": True, "rank": 1},
+            "sources": [{"title": "DeepSeek 信源", "url": "https://example.com/deepseek"}],
+        }, self.root / "results")
+        self.queue.accept_result(task["id"], claimed["lease_token"], "kimi", "direct-kimi", {
+            **common, "collector_model": "kimi", "reply": "Kimi 独立回答没有推荐目标品牌。",
+            "analysis": {"mode": "local", "recommended": False, "rank": None},
+            "sources": [{"title": "Kimi 信源", "url": "https://example.com/kimi"}],
+        }, self.root / "results")
+        report = self.queue.diagnosis_report("kimi-independent")["report"]
+        kimi = next(item for item in report["models"] if item["id"] == "kimi")
+        answers = {item["model"]: item["answer"] for item in report["answers"]}
+        self.assertTrue(kimi["independent"])
+        self.assertEqual(kimi["data_source"], "direct")
+        self.assertNotEqual(answers["kimi"], answers["deepseek"])
+        self.assertEqual(report["probability_adjustment"]["kimi_overall_weight"], 1)
+        self.assertEqual(report["completed_rounds"], 2)
 
     def test_short_deepseek_fragment_with_many_sources_is_not_marked_complete(self):
         task = self.queue.create({
@@ -965,7 +987,7 @@ class RemoteTaskQueueTests(unittest.TestCase):
             "brand_name": "测试品牌", "product_name": "测试产品", "question": "推荐产品",
         })
         self.assertEqual(task["rounds"], 4)
-        self.assertEqual(task["total_steps"], 18)
+        self.assertEqual(task["total_steps"], 20)
 
     def test_high_probability_policy_is_snapshotted_per_diagnosis(self):
         ordinary = self.queue.create_diagnosis("policy-before", {

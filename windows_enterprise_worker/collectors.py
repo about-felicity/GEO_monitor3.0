@@ -486,6 +486,77 @@ class SubprocessCollector:
         return {"ready": True, "message": f"{self.model_id} collector configured"}
 
 
+class KimiExtensionCollector(SubprocessCollector):
+    """Independent Kimi collector backed by the user's Chrome extension."""
+
+    model_id = "kimi"
+    batch_collection_enabled = True
+
+    def __init__(self) -> None:
+        from .kimi_extension import KimiExtensionClient
+
+        self.client = KimiExtensionClient()
+        self.task_id = "standalone"
+
+    def prepare_task(self, task_id: str, _task_kind: str) -> None:
+        self.task_id = re.sub(r"[^A-Za-z0-9_-]", "-", str(task_id or ""))[:80] or "task"
+
+    def check_ready(self) -> dict[str, Any]:
+        return self.client.probe()
+
+    def _result(self, question: str, row: dict[str, Any], started: str) -> CapturedAnswer:
+        captured_question = _validate_collected_question(self.model_id, question, row)
+        value = _sanitize_provider_result(self.model_id, question, row)
+        value["captured_question"] = captured_question or question
+        _validate_provider_answer(self.model_id, question, str(value.get("body") or ""))
+        return _captured(value, mode="kimi_chrome_extension", started=started)
+
+    def collect_new_conversation(
+        self, question: str, round_number: int, progress: ProgressCallback
+    ) -> CapturedAnswer:
+        started = _now()
+        _resource_gate(progress, wait=True)
+        with _activity(self.model_id):
+            rows = self.client.run_job(
+                job_id=f"geo-{self.task_id}-kimi-{round_number}",
+                questions=[question], rounds=1, progress=progress,
+                timeout=int(os.environ.get("GEO_KIMI_EXTENSION_TIMEOUT", "240")),
+            )
+        return self._result(question, rows[0], started)
+
+    def collect_batch(
+        self, rounds: list[tuple[int, str]], progress: ProgressCallback
+    ) -> dict[int, CapturedAnswer]:
+        if len(rounds) < 2:
+            number, question = rounds[0]
+            return {number: self.collect_new_conversation(question, number, progress)}
+        questions = [question for _, question in rounds]
+        unique_questions = list(dict.fromkeys(questions))
+        if len(unique_questions) == 1:
+            job_questions, job_rounds = unique_questions, len(rounds)
+        elif len(unique_questions) == len(questions):
+            job_questions, job_rounds = questions, 1
+        else:
+            return {
+                number: self.collect_new_conversation(question, number, progress)
+                for number, question in rounds
+            }
+        started = _now()
+        _resource_gate(progress, wait=True)
+        with _activity(self.model_id):
+            rows = self.client.run_job(
+                job_id=f"geo-{self.task_id}-kimi-batch",
+                questions=job_questions, rounds=job_rounds, progress=progress,
+                timeout=int(os.environ.get("GEO_KIMI_EXTENSION_TIMEOUT", "240")),
+            )
+        if len(rows) != len(rounds):
+            raise RuntimeError(f"Kimi 插件批量回收仅完成 {len(rows)}/{len(rounds)} 轮")
+        return {
+            number: self._result(question, row, started)
+            for (number, question), row in zip(rounds, rows)
+        }
+
+
 class DoubaoCollector(SubprocessCollector):
     model_id = "doubao"
     serial = os.environ.get("GEO_DOUBAO_SERIAL", "127.0.0.1:21513")
@@ -957,7 +1028,9 @@ def create_collector(model_id: str):
         return DoubaoCollector()
     if normalized == "yuanbao":
         return YuanbaoCollector()
-    if normalized in {"wenxin", "deepseek", "kimi"}:
+    if normalized == "kimi":
+        return KimiExtensionCollector()
+    if normalized in {"wenxin", "deepseek"}:
         return BridgeCollector(normalized)
     if normalized == "quark":
         return QuarkQueueCollector()

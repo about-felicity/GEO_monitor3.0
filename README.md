@@ -95,14 +95,13 @@
 | 文心一言 | Windows 本机网页直采，可批量建立独立会话 | `../DouBao_Monitor_v2.0/wenxin_monitor/` 可用，账号已登录 |
 | 千问 | 夸克浏览器打开 Qwen 的 `/quarkchat` 页面，通过 `../kuake/extension/` 和本机 `8765` 接收器采集 | 夸克浏览器、扩展、登录态、页面和扩展版本均就绪 |
 | DeepSeek | Chrome 持久化 profile 的网页端无头采集 | Chrome 已安装，`runtime/web_profiles/deepseek/` 中账号有效 |
-| Kimi | Chrome 持久化 profile 的网页端无头采集，平台繁忙时自动退避 | Chrome 已安装，`runtime/web_profiles/kimi/` 中账号有效 |
+| Kimi | 仓库内 `kimi_chrome_extension/` 驱动专用 Chrome；每轮新建独立会话，等待正文稳定并采集真实信源，失败可续跑 | Chrome 已安装，9227 端口可用，`runtime/web_profiles/kimi-extension/` 中账号有效 |
 
 不要把千问改成普通千问首页；当前生产采集目标是夸克浏览器中的 `https://www.qianwen.com/quarkchat`。
 
-当前公开即时诊断在 `remote_tasks.py` 中实际派发豆包、元宝、文心、千问和
-DeepSeek 五个采集任务，报告中的 Kimi 暂时使用 DeepSeek 镜像数据。Kimi 真实
-采集器已经存在，可供显式任务和付费监控配置使用；若要让公开诊断也真实采集
-Kimi，需要修改 `DIAGNOSIS_COLLECTION_MODELS` 并重新执行并发和概率一致性测试。
+当前公开即时诊断会派发六个平台的独立采集任务。Kimi 由 Chrome 插件直接采集，
+不再使用 DeepSeek 镜像数据，并作为第六个独立平台参与总体概率、排名、竞品和
+信源统计。历史上未派发 Kimi 的旧报告仍保留原镜像口径，避免上线后改写历史结果。
 
 ## 5. Windows Worker 环境要求
 
@@ -159,6 +158,7 @@ python -m pip install -r requirements/database.txt
 | ---: | --- |
 | 9222 | 元宝 Chrome/CDP 回收通道 |
 | 9223 | 夸克浏览器远程调试通道 |
+| 9227 | Kimi 插件专用 Chrome/CDP 控制通道 |
 | 8765 | 千问扩展本机任务与结果接收器 |
 | 9301 | 豆包受管浏览器端口，由资源监管器识别 |
 
@@ -170,7 +170,7 @@ python -m pip install -r requirements/database.txt
 
 - `config/worker_token.secret`：服务器分配的 Worker Token。
 - 工作区根目录 `../ds_apikey.txt`：本地回答分析使用的 DeepSeek API Key。
-- `runtime/web_profiles/`：DeepSeek/Kimi 等网页账号 profile。
+- `runtime/web_profiles/`：DeepSeek 与 Kimi 插件专用 Chrome 的网页账号 profile。
 - 两台模拟器和夸克浏览器各自的本机登录状态。
 
 不要在命令行、截图、日志或 README 中粘贴真实密钥。

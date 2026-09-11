@@ -18,7 +18,7 @@ DEVICES = {
     "doubao": (os.environ.get("GEO_DOUBAO_SERIAL", "127.0.0.1:21513"), "com.larus.nova", 1, 1300),
 }
 
-MANAGED_BROWSER_PORTS = {9222: "yuanbao", 9301: "doubao"}
+MANAGED_BROWSER_PORTS = {9222: "yuanbao", 9227: "kimi", 9301: "doubao"}
 
 
 def parse_listening_pids(text: str, ports: set[int] | None = None) -> dict[int, int]:

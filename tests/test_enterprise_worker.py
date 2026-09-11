@@ -10,9 +10,9 @@ from unittest.mock import patch
 
 from windows_enterprise_worker.analyzer import DeepSeekAnalyzer, _plausible_commercial_brand
 from windows_enterprise_worker.collectors import (
-    DoubaoCollector, YuanbaoCollector, _captured, _sanitize_provider_result,
+    DoubaoCollector, KimiExtensionCollector, YuanbaoCollector, _captured, _sanitize_provider_result,
     _validate_collected_question, _validate_provider_answer,
-    _yuanbao_capture_incomplete_reason,
+    _yuanbao_capture_incomplete_reason, create_collector,
 )
 from windows_enterprise_worker.yuanbao_burst import _install_complete_body_extractor
 from windows_enterprise_worker.supervisor import SUPERVISOR, parse_listening_pids, parse_meminfo
@@ -149,6 +149,42 @@ class EnterpriseWorkerTests(unittest.TestCase):
             MODEL_ORDER,
             ("doubao", "yuanbao", "wenxin", "quark", "deepseek", "kimi"),
         )
+
+    def test_kimi_factory_uses_independent_chrome_extension(self):
+        collector = create_collector("kimi")
+        self.assertIsInstance(collector, KimiExtensionCollector)
+
+    def test_kimi_extension_batch_maps_real_rounds_and_sources(self):
+        question = "推荐一款耐用的无线鼠标"
+
+        class Client:
+            def run_job(self, **kwargs):
+                self.kwargs = kwargs
+                return [
+                    {
+                        "prompt": question,
+                        "reply": f"推荐罗技 G304 无线鼠标，第 {number} 轮续航稳定。",
+                        "sources": [{"title": f"来源{number}", "url": f"https://example.com/{number}"}],
+                        "expected_source_count": 1,
+                        "source_capture_complete": True,
+                        "page_url": f"https://www.kimi.com/chat/{number}",
+                    }
+                    for number in (1, 2)
+                ]
+
+        collector = KimiExtensionCollector()
+        collector.client = Client()
+        collector.prepare_task("diagnosis-1", "diagnosis")
+        with patch("windows_enterprise_worker.collectors._activity", return_value=nullcontext()):
+            output = collector.collect_batch(
+                [(1, question), (2, question)], lambda _message: None
+            )
+        self.assertEqual(sorted(output), [1, 2])
+        self.assertEqual(collector.client.kwargs["job_id"], "geo-diagnosis-1-kimi-batch")
+        self.assertEqual(collector.client.kwargs["questions"], [question])
+        self.assertEqual(collector.client.kwargs["rounds"], 2)
+        self.assertEqual(output[1].capture_mode, "kimi_chrome_extension")
+        self.assertEqual(output[2].sources[0]["title"], "来源2")
 
     def test_capture_mapping_preserves_complete_sources(self):
         result = _captured({

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Kimi对话监控</title>
+  <link rel="stylesheet" href="ui.css">
+</head>
+<body>
+  <main class="app popupApp">
+    <div class="top">
+      <div><h1>Kimi对话监控</h1><div class="subtle">每题新对话 · 正文 + 全部信源 · 仅本机</div></div>
+      <span id="headerStatus" class="badge">未开始</span>
+    </div>
+    <nav class="panelTabs" aria-label="插件面板">
+      <button class="panelTab active" data-pane="taskPane">任务</button>
+      <button class="panelTab" data-pane="resultsPane">结果 <span id="resultTabCount">0</span></button>
+      <button class="panelTab" data-pane="logsPane">日志</button>
+    </nav>
+
+    <section id="taskPane" class="panelPane active">
+      <section class="card">
+        <div class="statusline"><span id="statusBadge" class="badge">未开始</span><span id="progressText" class="subtle">0 / 0</span></div>
+        <div class="progress"><i id="progressBar"></i></div>
+        <div class="stats">
+          <div class="stat"><strong id="resultCount">0</strong><span>本地结果</span></div>
+          <div class="stat"><strong id="pendingCount">0</strong><span>待写入</span></div>
+          <div class="stat"><strong id="currentRound">-</strong><span>当前轮次</span></div>
+        </div>
+        <div id="errorBox" class="error"></div>
+      </section>
+      <section class="card">
+        <div class="fieldHeader"><label for="questions">问题列表（每行一个）</label><button id="loadAllQuestions" class="ghost smallButton">载入全部13题</button></div>
+        <textarea id="questions" spellcheck="false"></textarea>
+        <div id="questionCountHint" class="questionCountHint">已加载 0 / 13 个问题</div>
+        <div class="grid">
+          <div><label for="rounds">每题轮数</label><input id="rounds" type="number" min="1" max="10000"></div>
+          <div><label for="questionMode">顺序</label><select id="questionMode"><option value="interleaved">按轮交错</option><option value="sequential">同题连续</option></select></div>
+        </div>
+        <div class="grid three">
+          <div><label for="intervalMin">最短间隔/秒</label><input id="intervalMin" type="number" min="1"></div>
+          <div><label for="intervalMax">最长间隔/秒</label><input id="intervalMax" type="number" min="1"></div>
+          <div><label for="timeout">回答超时/秒</label><input id="timeout" type="number" min="30"></div>
+        </div>
+        <details style="margin-top:10px">
+          <summary>高级设置</summary>
+          <div class="grid">
+            <div><label for="maxRetries">系统异常重试次数</label><input id="maxRetries" type="number" min="0" max="10"></div>
+            <div><label for="retryDelay">重试等待/秒</label><input id="retryDelay" type="number" min="5"></div>
+          </div>
+          <label for="receiverUrl">本机接收器</label><input id="receiverUrl" type="url">
+          <label for="targetUrl" style="margin-top:9px">对话页入口</label><input id="targetUrl" type="url">
+          <div class="actions" style="margin-top:9px"><button id="resetAdaptive" class="ghost">重置自适应 UI 记忆</button></div>
+        </details>
+      </section>
+      <section class="card actions">
+        <button id="start" class="primary">开始新任务</button>
+        <button id="pause">暂停</button>
+        <button id="resume">继续</button>
+        <button id="stop" class="danger">停止</button>
+        <button id="openTarget">打开对话页</button>
+      </section>
+      <div class="footer"><span>关闭面板后任务仍继续 · v<span id="extensionVersion">-</span></span><button id="retrySync" class="ghost">重试本地写入</button></div>
+    </section>
+
+    <section id="resultsPane" class="panelPane">
+      <section class="card resultToolbar">
+        <div><strong id="resultsSummary">读取中…</strong><div id="resultsSource" class="subtle"></div></div>
+        <div class="actions"><button id="refreshResults">刷新</button><button id="exportJsonl" class="primary">JSONL</button><button id="exportCsv">CSV</button></div>
+      </section>
+      <div id="resultCards" class="resultCards"></div>
+      <div id="resultsEmpty" class="emptyState">暂无结果</div>
+    </section>
+
+    <section id="logsPane" class="panelPane">
+      <section class="card resultToolbar">
+        <div><strong>运行日志</strong><div id="logsSource" class="subtle">最新记录在最上方</div></div>
+        <button id="refreshLogs">刷新</button>
+      </section>
+      <div class="logLegend"><span><i class="legendDot progressDot"></i>处理中</span><span><i class="legendDot successDot"></i>已完成</span><span><i class="legendDot waitingDot"></i>待重试</span><span><i class="legendDot errorDot"></i>异常</span></div>
+      <div id="logCards" class="logCards"></div>
+      <div id="logsEmpty" class="emptyState">暂无日志</div>
+    </section>
+    <div id="toast" class="toast" role="status"></div>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

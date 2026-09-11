@@ -29,7 +29,7 @@ from monitor_core.quality import repair_fragmented_answer
 BEIJING = timezone(timedelta(hours=8))
 ALLOWED_MODELS = ("doubao", "yuanbao", "wenxin", "deepseek", "kimi", "quark")
 DIAGNOSIS_MODELS = ("doubao", "yuanbao", "wenxin", "quark", "deepseek", "kimi")
-DIAGNOSIS_COLLECTION_MODELS = ("doubao", "yuanbao", "wenxin", "quark", "deepseek")
+DIAGNOSIS_COLLECTION_MODELS = ("doubao", "yuanbao", "wenxin", "quark", "deepseek", "kimi")
 DIAGNOSIS_FIXED_ROUNDS = {"deepseek": 2, "kimi": 2}
 CURRENT_PROBABILITY_POLICY_VERSION = 6
 HIGH_PROBABILITY_PRIORS = {
@@ -2177,10 +2177,6 @@ class RemoteTaskQueue:
                 "ready": ready,
                 "message": "隐身登录已就绪" if ready else "隐身登录未就绪",
             }
-        model_states["kimi"] = {
-            "ready": model_states.get("deepseek", {}).get("ready", False),
-            "message": "报告暂由 DeepSeek 数据生成",
-        }
         all_ready = bool(selected) and all(
             model_states[model]["ready"] for model in DIAGNOSIS_COLLECTION_MODELS
         )
@@ -2196,7 +2192,7 @@ class RemoteTaskQueue:
             }
             message = "、".join(display[item] for item in missing.split("、")) + "隐身登录尚未就绪，请联系管理员"
         else:
-            message = "五模型采集环境已就绪，Kimi 报告使用 DeepSeek 数据"
+            message = "六模型独立采集环境已就绪"
         return {
             "ready": all_ready,
             "online": bool(selected),
@@ -2244,13 +2240,16 @@ class RemoteTaskQueue:
             if isinstance(record, dict):
                 record.setdefault("collector_model", row["model_id"])
                 records.append(record)
+        # Reports created before the Kimi extension was integrated did not
+        # schedule Kimi. Preserve their historical DeepSeek mirror, while all
+        # newly created tasks carry Kimi in models_json and use only its own
+        # independently captured evidence.
+        legacy_kimi_mirror = "kimi" not in set(task.get("models") or [])
         deepseek_records = [
             record for record in records
             if str(record.get("collector_model") or record.get("model_id") or "") == "deepseek"
         ]
-        if deepseek_records:
-            # Temporary product policy: Kimi is always represented by the same
-            # DeepSeek rounds, including reports that contain older Kimi rows.
+        if legacy_kimi_mirror and deepseek_records:
             records = [
                 record for record in records
                 if str(record.get("collector_model") or record.get("model_id") or "") != "kimi"
@@ -2560,7 +2559,7 @@ class RemoteTaskQueue:
                 })
             completed = len(model_records)
             raw_rate = round(recommended * 100 / completed, 1) if completed else 0
-            calibration_model = "deepseek" if model == "kimi" else model
+            calibration_model = "deepseek" if model == "kimi" and legacy_kimi_mirror else model
             rank_quality = (
                 sum(recommendation_rank_scores) / len(recommendation_rank_scores)
                 if recommendation_rank_scores else 0.0
@@ -2594,7 +2593,7 @@ class RemoteTaskQueue:
                 high_probability_prior=True,
                 probability_policy_version=probability_policy_version,
             )[0]
-            if model == "kimi" and completed and rate > 0:
+            if model == "kimi" and legacy_kimi_mirror and completed and rate > 0:
                 # Kimi currently uses the audited DeepSeek sample as its input,
                 # but it must remain a visibly distinct platform estimate.
                 # Policy v6 halves the complete ordinary-brand output, so its
@@ -2623,8 +2622,8 @@ class RemoteTaskQueue:
 
             per_model.append({
                 "id": model,
-                "independent": model != "kimi",
-                "data_source": "deepseek_mirror" if model == "kimi" else "direct",
+                "independent": model != "kimi" or not legacy_kimi_mirror,
+                "data_source": "deepseek_mirror" if model == "kimi" and legacy_kimi_mirror else "direct",
                 "completed": completed,
                 "target_rounds": model_target_rounds(task, model),
                 "recommended_rounds": recommended,
@@ -2647,7 +2646,7 @@ class RemoteTaskQueue:
                 "analysis_complete_rounds": analysis_complete_rounds,
                 "total_body_chars": total_body_chars,
             })
-        effective_models = [item for item in per_model if item["id"] != "kimi" and item["completed"]]
+        effective_models = [item for item in per_model if item["independent"] and item["completed"]]
         completed_total = sum(int(item["completed"]) for item in effective_models)
         raw_overall_rate = (
             round(sum(float(item["raw_recommendation_rate"]) for item in effective_models) / len(effective_models), 1)
@@ -2706,7 +2705,10 @@ class RemoteTaskQueue:
                 model for model, count in item["model_recommended_mentions"].items() if int(count) > 0
             }
             mentioned_models = set(item["models"])
-            independent_models = {model for model in mentioned_models if model != "kimi"}
+            independent_models = {
+                model for model in mentioned_models
+                if model != "kimi" or not legacy_kimi_mirror
+            }
             model_visibility = {}
             for model_report in per_model:
                 model = str(model_report["id"])
@@ -2778,7 +2780,7 @@ class RemoteTaskQueue:
                     },
                     "quality_factors": ["verified_rank", "analysis_completeness", "capture_completeness"],
                     "overall_weighting": "equal_weight_per_independent_platform",
-                    "kimi_overall_weight": 0,
+                    "kimi_overall_weight": 0 if legacy_kimi_mirror else 1,
                     "high_probability_prior_applied": high_probability_brand,
                     "ordinary_brand_ceiling": (
                         None if high_probability_brand
@@ -2817,7 +2819,9 @@ class RemoteTaskQueue:
                 "recommended_rounds": recommended_total,
                 "completed_rounds": completed_total,
                 "target_rounds": sum(
-                    model_target_rounds(task, model) for model in DIAGNOSIS_COLLECTION_MODELS
+                    model_target_rounds(task, model)
+                    for model in task.get("models") or []
+                    if model in DIAGNOSIS_MODELS
                 ),
                 "conclusion": conclusion,
                 "models": per_model,

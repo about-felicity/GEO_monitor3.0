@@ -201,11 +201,25 @@ class WorkerRunner:
             self.client.login_heartbeat(login_id, lease, str(message)[:500])
 
         try:
+            if model == "kimi":
+                collector = self._collector(model)
+                progress("已打开 Kimi 插件专用 Chrome，请完成登录")
+                deadline = time.monotonic() + 600
+                while time.monotonic() < deadline:
+                    state = collector.check_ready()
+                    if bool(state.get("ready", state.get("ok", False))):
+                        self._readiness_expires = 0.0
+                        self.client.finish_login(login_id, lease, "ready")
+                        return
+                    progress(str(state.get("message") or "等待 Kimi 登录")[:500])
+                    time.sleep(2)
+                raise TimeoutError("等待 Kimi 插件登录超时")
+
             from web_collectors.browser import cookie_env_name
             from web_collectors.collector import BrowserCollector
             from windows_enterprise_worker.session_store import save_session
 
-            if model not in {"deepseek", "kimi"}:
+            if model != "deepseek":
                 raise ValueError(f"{model} 不使用网页 Cookie 登录流程")
             os.environ.pop(cookie_env_name(model), None)
             progress(f"正在本机打开 {model} 登录窗口")
@@ -294,6 +308,9 @@ class WorkerRunner:
         } if isinstance(model_captures, dict) else {}
         collector = self._collector(model_id)
         task_kind = str(task.get("task_kind") or "")
+        prepare_task = getattr(collector, "prepare_task", None)
+        if callable(prepare_task):
+            prepare_task(task_id, task_kind)
         prepare = getattr(collector, "prepare_diagnosis", None)
         if callable(prepare):
             if task_kind == "diagnosis":

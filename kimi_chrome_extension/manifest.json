@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Kimi对话监控（本地版）",
+  "version": "0.2.0",
+  "description": "接入 GEO 诊断队列，逐题新建 Kimi 对话并采集完整正文与真实信源。",
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "tabs",
+    "scripting",
+    "downloads",
+    "clipboardWrite",
+    "alarms"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8767/*",
+    "https://*.kimi.com/*",
+    "https://kimi.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Kimi对话监控",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.kimi.com/*",
+        "https://kimi.com/*"
+      ],
+      "js": ["injected.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://*.kimi.com/*",
+        "https://kimi.com/*"
+      ],
+      "js": ["core.js", "adaptive.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

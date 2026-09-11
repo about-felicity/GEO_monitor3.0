@@ -9,9 +9,30 @@ from windows_worker_sdk.protocol import ServerClient
 
 ROOT = Path(__file__).resolve().parents[1]
 EXTENSION = ROOT / "geo_chrome_extension"
+KIMI_EXTENSION = ROOT / "kimi_chrome_extension"
 
 
 class ChromeExtensionTests(unittest.TestCase):
+    def test_kimi_extension_exposes_idempotent_diagnosis_control(self):
+        manifest = json.loads((KIMI_EXTENSION / "manifest.json").read_text(encoding="utf-8"))
+        background = (KIMI_EXTENSION / "background.js").read_text(encoding="utf-8")
+        content = (KIMI_EXTENSION / "content.js").read_text(encoding="utf-8")
+        self.assertEqual(manifest["version"], "0.2.0")
+        self.assertTrue(any("kimi.com" in item for item in manifest["host_permissions"]))
+        self.assertIn('case "PROBE_READY"', background)
+        self.assertIn("requestedJobId", background)
+        self.assertIn("existing?.id === requestedJobId", background)
+        self.assertIn("completedSuccessfully", background)
+        self.assertIn('item.status !== "failed"', background)
+        self.assertIn('case "START_JOB"', background)
+        self.assertIn('case "STOP_JOB"', background)
+        self.assertIn("createNewChat()", content)
+        self.assertIn("submitPrompt(composer, item.prompt)", content)
+        self.assertIn("waitForAnswer(item.prompt", content)
+        self.assertIn("loginRequired", content)
+        self.assertIn('collector_model: "kimi"', content)
+        self.assertIn("source_capture_complete", content)
+
     def test_enterprise_worker_ignores_stale_system_proxy(self):
         client = ServerClient("https://www.ifbcy.com/geo", "test-token")
         self.assertFalse(client._session().trust_env)
