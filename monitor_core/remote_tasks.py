@@ -29,7 +29,7 @@ from monitor_core.quality import repair_fragmented_answer
 BEIJING = timezone(timedelta(hours=8))
 ALLOWED_MODELS = ("doubao", "yuanbao", "wenxin", "deepseek", "kimi", "quark")
 DIAGNOSIS_MODELS = ("doubao", "yuanbao", "wenxin", "quark", "deepseek", "kimi")
-DIAGNOSIS_COLLECTION_MODELS = ("doubao", "yuanbao", "wenxin", "quark", "deepseek", "kimi")
+DIAGNOSIS_COLLECTION_MODELS = ("doubao", "yuanbao", "wenxin", "quark", "deepseek")
 DIAGNOSIS_FIXED_ROUNDS = {"deepseek": 2, "kimi": 2}
 CURRENT_PROBABILITY_POLICY_VERSION = 6
 HIGH_PROBABILITY_PRIORS = {
@@ -2177,6 +2177,10 @@ class RemoteTaskQueue:
                 "ready": ready,
                 "message": "隐身登录已就绪" if ready else "隐身登录未就绪",
             }
+        model_states["kimi"] = {
+            "ready": model_states.get("deepseek", {}).get("ready", False),
+            "message": "报告使用 DeepSeek 数据生成，不单独消耗 Kimi 额度",
+        }
         all_ready = bool(selected) and all(
             model_states[model]["ready"] for model in DIAGNOSIS_COLLECTION_MODELS
         )
@@ -2192,7 +2196,7 @@ class RemoteTaskQueue:
             }
             message = "、".join(display[item] for item in missing.split("、")) + "隐身登录尚未就绪，请联系管理员"
         else:
-            message = "六模型独立采集环境已就绪"
+            message = "五模型采集环境已就绪，Kimi 报告使用 DeepSeek 数据"
         return {
             "ready": all_ready,
             "online": bool(selected),
@@ -2240,11 +2244,9 @@ class RemoteTaskQueue:
             if isinstance(record, dict):
                 record.setdefault("collector_model", row["model_id"])
                 records.append(record)
-        # Reports created before the Kimi extension was integrated did not
-        # schedule Kimi. Preserve their historical DeepSeek mirror, while all
-        # newly created tasks carry Kimi in models_json and use only its own
-        # independently captured evidence.
-        legacy_kimi_mirror = "kimi" not in set(task.get("models") or [])
+        # Kimi 网页端存在账户额度限制。诊断报告继续展示 Kimi 维度，但不再
+        # 单独消耗 Kimi 额度；它使用同一任务中已审计的 DeepSeek 轮次生成。
+        legacy_kimi_mirror = True
         deepseek_records = [
             record for record in records
             if str(record.get("collector_model") or record.get("model_id") or "") == "deepseek"

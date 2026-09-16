@@ -1,6 +1,6 @@
 # GEO 品牌推荐诊断系统
 
-这是当前生产主项目。系统接收客户的品牌推荐诊断，使用豆包、腾讯元宝、文心一言、千问、DeepSeek、Kimi 六个平台采集多轮真实回答和信源，计算品牌推荐概率、排名与竞品，并提供总管理员、下级管理员、客户报告和付费用户每日监控面板。
+这是当前生产主项目。系统接收客户的品牌推荐诊断，采集豆包、腾讯元宝、文心一言、千问和 DeepSeek 的多轮真实回答与信源，并在报告中提供包括 Kimi 在内的六个平台维度；Kimi 维度使用同任务的 DeepSeek 已审计数据生成，避免消耗受限的 Kimi 账户额度。
 
 生产地址：
 
@@ -21,7 +21,7 @@
   -> Python API
   -> SQLite 持久化任务队列
   -> Windows Worker 主动通过 HTTPS 领取任务
-  -> 六模型采集、正文清洗、信源校验和本地分析
+  -> 五模型采集、正文清洗、信源校验和本地分析
   -> 幂等回传每一轮结果
   -> 服务器生成诊断报告和每日监控面板
 ```
@@ -67,7 +67,7 @@
 | 文件或目录 | 本地职责 |
 | --- | --- |
 | `windows_worker_sdk/protocol.py` | Worker HTTPS 协议、鉴权和连接健康状态 |
-| `windows_worker_sdk/runner.py` | 领取任务、六模型并行、轮次调度、心跳、断点和幂等上传 |
+| `windows_worker_sdk/runner.py` | 领取任务、模型并行、轮次调度、心跳、断点和幂等上传 |
 | `windows_worker_sdk/contracts.py` | 回答、信源及本地分析的数据合同 |
 | `windows_enterprise_worker/collectors.py` | 六个平台的生产采集入口和完整性校验 |
 | `windows_enterprise_worker/analyzer.py` | 本地品牌推荐、排名、竞品和证据分析 |
@@ -95,13 +95,13 @@
 | 文心一言 | Windows 本机网页直采，可批量建立独立会话 | `../DouBao_Monitor_v2.0/wenxin_monitor/` 可用，账号已登录 |
 | 千问 | 夸克浏览器打开 Qwen 的 `/quarkchat` 页面，通过 `../kuake/extension/` 和本机 `8765` 接收器采集 | 夸克浏览器、扩展、登录态、页面和扩展版本均就绪 |
 | DeepSeek | Chrome 持久化 profile 的网页端无头采集 | Chrome 已安装，`runtime/web_profiles/deepseek/` 中账号有效 |
-| Kimi | 仓库内 `kimi_chrome_extension/` 驱动专用 Chrome；每轮新建独立会话，等待正文稳定并采集真实信源，失败可续跑 | Chrome 已安装，9227 端口可用，`runtime/web_profiles/kimi-extension/` 中账号有效 |
+| Kimi | 即时诊断不直接访问 Kimi；报告维度使用 DeepSeek 已审计轮次生成 | 不要求 Kimi 登录或额度 |
 
 不要把千问改成普通千问首页；当前生产采集目标是夸克浏览器中的 `https://www.qianwen.com/quarkchat`。
 
-当前公开即时诊断会派发六个平台的独立采集任务。Kimi 由 Chrome 插件直接采集，
-不再使用 DeepSeek 镜像数据，并作为第六个独立平台参与总体概率、排名、竞品和
-信源统计。历史上未派发 Kimi 的旧报告仍保留原镜像口径，避免上线后改写历史结果。
+当前公开即时诊断会派发五个平台的独立采集任务。Kimi 不单独提问，报告中的
+Kimi 正文、信源和分析依据来自同任务的 DeepSeek 已审计轮次，并保持独立的
+展示校准；因此不会因为 Kimi 额度不足拖住整个诊断任务。
 
 ## 5. Windows Worker 环境要求
 
@@ -109,7 +109,7 @@
 
 - Windows 10/11 x64，保持用户处于已登录桌面会话。
 - BIOS/UEFI 开启 CPU 虚拟化，Windows 能正常运行两个 MEmu 实例。
-- 建议至少 6 核 CPU、16 GB 内存和 30 GB 可用磁盘；六模型并发及双模拟器长期运行建议 24 GB 或更多内存。
+- 建议至少 6 核 CPU、16 GB 内存和 30 GB 可用磁盘；五模型并发及双模拟器长期运行建议 24 GB 或更多内存。
 - Worker 在内存占用达到 88% 或可用内存低于 12% 时会暂停启动新的重型子进程，等待资源恢复，防止任务因内存耗尽失败。
 - 系统不能自动休眠；长期任务期间保持网络、电源和桌面登录状态。
 
