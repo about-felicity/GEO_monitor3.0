@@ -17,6 +17,7 @@ from .protocol import ServerClient, ServerError
 
 
 MODEL_ORDER = ("doubao", "yuanbao", "wenxin", "quark", "deepseek", "kimi")
+DIRECT_COLLECTION_MODELS = ("doubao", "yuanbao", "wenxin", "quark", "deepseek")
 DIAGNOSIS_FIXED_ROUNDS = {"deepseek": 2, "kimi": 2}
 # Start the longest serial collectors first. Quark does not consume a child
 # process slot, so it can still run immediately even when submitted last.
@@ -176,7 +177,7 @@ class WorkerRunner:
         if self._readiness_cache and moment < self._readiness_expires:
             return {model: dict(value) for model, value in self._readiness_cache.items()}
         output: dict[str, Any] = {}
-        for model_id in MODEL_ORDER:
+        for model_id in DIRECT_COLLECTION_MODELS:
             try:
                 collector = self._collector(model_id)
                 raw = collector.check_ready()
@@ -187,6 +188,14 @@ class WorkerRunner:
                 }
             except Exception as exc:
                 output[model_id] = {"ready": False, "message": f"{type(exc).__name__}: {exc}"[:160]}
+        # Kimi is now a report-only dimension backed by the audited DeepSeek
+        # samples. Probing its collector would launch Chrome and may resume a
+        # job persisted by the extension, so readiness must never probe it.
+        deepseek = output.get("deepseek") or {"ready": False}
+        output["kimi"] = {
+            "ready": bool(deepseek.get("ready")),
+            "message": "uses DeepSeek diagnosis data; no direct Kimi collection",
+        }
         self._readiness_cache = {model: dict(value) for model, value in output.items()}
         self._readiness_expires = moment + max(10, int(os.environ.get("GEO_READINESS_TTL", "30")))
         return output

@@ -1215,8 +1215,12 @@ class RemoteTaskQueueTests(unittest.TestCase):
         monitor = self.queue.create_paid_monitor(self._paid_payload("paid-001"))
         self.assertEqual(len(monitor["runs"]), 1)
         task = monitor["current_task"]
-        self.assertEqual(task["total_steps"], 21)
-        self.assertEqual(task["model_rounds"]["kimi"], 6)
+        self.assertEqual(task["total_steps"], 15)
+        self.assertEqual(
+            task["models"], ["doubao", "yuanbao", "wenxin", "quark", "deepseek"],
+        )
+        self.assertNotIn("kimi", task["model_rounds"])
+        self.assertEqual(monitor["model_rounds"]["kimi"], 6)
         for _ in range(5):
             self.queue.sync_paid_monitor_tasks()
         self.assertEqual(len(self.queue.list()), 1)
@@ -1423,7 +1427,7 @@ class RemoteTaskQueueTests(unittest.TestCase):
         )})
         updated = self.queue.update_paid_monitor(first["id"], revised)
         self.assertNotEqual(updated["current_task"]["id"], claimed["id"])
-        self.assertEqual(updated["current_task"]["total_steps"], 12)
+        self.assertEqual(updated["current_task"]["total_steps"], 10)
         self.assertTrue((self.queue.get(claimed["id"]) or {})["cancel_requested"])
         self.queue.finish(claimed["id"], claimed["lease_token"], {"status": "cancelled"})
         next_task = self.queue.claim("desktop")

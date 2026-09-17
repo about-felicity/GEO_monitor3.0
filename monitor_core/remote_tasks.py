@@ -1156,7 +1156,8 @@ class RemoteTaskQueue:
 
     def _create_paid_monitor_task(self, monitor: dict[str, Any], run_date: str) -> dict[str, Any]:
         task = self.create({
-            "models": list(DIAGNOSIS_MODELS),
+            # Keep Kimi as a report dimension without spending Kimi quota.
+            "models": list(DIAGNOSIS_COLLECTION_MODELS),
             "questions": list(monitor["questions"]),
             "rounds": max(monitor["model_rounds"].values()),
             "model_rounds": monitor["model_rounds"],

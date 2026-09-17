@@ -8,6 +8,7 @@ from unittest import mock
 
 from windows_worker_sdk.contracts import AnalysisResult, CapturedAnswer, build_record
 from windows_worker_sdk.runner import (
+    DIRECT_COLLECTION_MODELS,
     LocalSpool,
     WorkerRunner,
     build_schedule,
@@ -18,6 +19,31 @@ from windows_worker_sdk.runner import (
 
 
 class WindowsWorkerSDKTests(unittest.TestCase):
+    def test_readiness_never_starts_direct_kimi_collector(self):
+        created = []
+
+        class Collector:
+            def __init__(self, model):
+                self.model = model
+
+            def check_ready(self):
+                return {"ready": True, "message": "ok"}
+
+        def factory(model):
+            created.append(model)
+            if model == "kimi":
+                raise AssertionError("readiness must not launch Kimi Chrome")
+            return Collector(model)
+
+        with tempfile.TemporaryDirectory() as directory:
+            runner = WorkerRunner(
+                object(), "worker", factory, object(), LocalSpool(Path(directory))
+            )
+            readiness = runner.readiness()
+        self.assertEqual(tuple(created), DIRECT_COLLECTION_MODELS)
+        self.assertTrue(readiness["kimi"]["ready"])
+        self.assertIn("DeepSeek", readiness["kimi"]["message"])
+
     def test_identical_answer_from_two_proven_fresh_documents_is_valid(self):
         class Client:
             def __init__(self):

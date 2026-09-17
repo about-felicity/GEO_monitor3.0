@@ -158,7 +158,7 @@ python -m pip install -r requirements/database.txt
 | ---: | --- |
 | 9222 | 元宝 Chrome/CDP 回收通道 |
 | 9223 | 夸克浏览器远程调试通道 |
-| 9227 | Kimi 插件专用 Chrome/CDP 控制通道 |
+| 9227 | 历史 Kimi 插件调试端口；当前诊断与每日监控不启动 |
 | 8765 | 千问扩展本机任务与结果接收器 |
 | 9301 | 豆包受管浏览器端口，由资源监管器识别 |
 
@@ -170,7 +170,7 @@ python -m pip install -r requirements/database.txt
 
 - `config/worker_token.secret`：服务器分配的 Worker Token。
 - 工作区根目录 `../ds_apikey.txt`：本地回答分析使用的 DeepSeek API Key。
-- `runtime/web_profiles/`：DeepSeek 与 Kimi 插件专用 Chrome 的网页账号 profile。
+- `runtime/web_profiles/`：DeepSeek 网页账号 profile；Kimi profile 仅保留历史数据，不再自动启动。
 - 两台模拟器和夸克浏览器各自的本机登录状态。
 
 不要在命令行、截图、日志或 README 中粘贴真实密钥。
@@ -247,7 +247,7 @@ npm run build
 npm test
 ```
 
-发布前必须确认：后端测试通过、前端生产构建通过、`/geo/assets/` 校验通过；发布后检查客户入口、管理员入口、健康接口、Worker 心跳、六模型 readiness 和队列是否停滞。
+发布前必须确认：后端测试通过、前端生产构建通过、`/geo/assets/` 校验通过；发布后检查客户入口、管理员入口、健康接口、Worker 心跳、五个直采模型 readiness、Kimi 镜像状态和队列是否停滞。
 
 ## 10. 生产发布
 

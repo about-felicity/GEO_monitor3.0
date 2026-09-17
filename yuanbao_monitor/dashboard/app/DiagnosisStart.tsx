@@ -52,7 +52,7 @@ const MODEL_SHOWCASE = [
   { id: "wenxin", name: "文心一言", description: "真实问答与信源采集", progressModel: "wenxin" },
   { id: "quark", name: "千问", description: "真实问答与信源采集", progressModel: "quark" },
   { id: "deepseek", name: "DeepSeek", description: "真实问答与信源采集", progressModel: "deepseek" },
-  { id: "kimi", name: "Kimi", description: "真实问答与信源采集", progressModel: "kimi" },
+  { id: "kimi", name: "Kimi", description: "使用 DeepSeek 审计数据生成", progressModel: "kimi" },
 ] as const;
 
 function monitorBasePath() {
