@@ -3464,14 +3464,27 @@ class RemoteTaskQueue:
             }
         readiness_json = json.dumps(safe_readiness, ensure_ascii=False, separators=(",", ":"))
 
-        def task_models_ready(row: sqlite3.Row) -> bool:
+        def task_models_ready(connection: sqlite3.Connection, row: sqlite3.Row) -> bool:
             if not readiness_supplied:
                 return True
-            try:
-                models = json.loads(str(row["models_json"] or "[]"))
-            except (TypeError, ValueError, json.JSONDecodeError):
+            task = self._decode(row, include_private=True) or {}
+            models = [str(model) for model in task.get("models") or []]
+            if not models:
                 return False
-            return bool(models) and all(bool(safe_readiness.get(str(model), {}).get("ready")) for model in models)
+            # A resumed task only needs resources for its unfinished models.
+            # Requiring an already completed browser/model to remain online
+            # permanently blocks unrelated missing rounds (for example, a
+            # completed Yuanbao session must not prevent Doubao recovery).
+            progress = self._model_progress(connection, task)
+            pending_models = [
+                model for model in models
+                if int((progress.get(model) or {}).get("completed") or 0)
+                < int((progress.get(model) or {}).get("total") or model_target_rounds(task, model))
+            ]
+            return all(
+                bool(safe_readiness.get(model, {}).get("ready"))
+                for model in pending_models
+            )
 
         now = time.time()
         with self._connection() as connection:
@@ -3517,7 +3530,7 @@ class RemoteTaskQueue:
             ).fetchone()
             if active is not None:
                 if str(active["worker_id"] or "") == worker_id:
-                    if not task_models_ready(active):
+                    if not task_models_ready(connection, active):
                         message = "采集资源保护中，任务继续排队"
                         connection.execute(
                             "UPDATE remote_tasks SET status='queued',worker_id='',lease_token='',lease_expires=0,"
@@ -3600,7 +3613,7 @@ class RemoteTaskQueue:
             if row is None:
                 connection.commit()
                 return None
-            if not task_models_ready(row):
+            if not task_models_ready(connection, row):
                 message = "采集资源保护中，任务继续排队"
                 connection.execute(
                     "UPDATE remote_workers SET status='idle',current_task_id='',message=?,"

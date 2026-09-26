@@ -1225,6 +1225,49 @@ class RemoteTaskQueueTests(unittest.TestCase):
             self.queue.sync_paid_monitor_tasks()
         self.assertEqual(len(self.queue.list()), 1)
 
+    def test_paid_monitor_resume_requires_only_unfinished_models_to_be_ready(self):
+        rounds = {
+            model: 1 for model in (
+                "doubao", "yuanbao", "wenxin", "quark", "deepseek", "kimi"
+            )
+        }
+        monitor = self.queue.create_paid_monitor(
+            self._paid_payload("partial-readiness", rounds=rounds)
+        )
+        ready = {
+            model: {"ready": True} for model in (
+                "doubao", "yuanbao", "wenxin", "quark", "deepseek", "kimi"
+            )
+        }
+        claimed = self.queue.claim("desktop", ready)
+        for model in ("yuanbao", "wenxin", "quark", "deepseek"):
+            self.queue.accept_result(
+                claimed["id"], claimed["lease_token"], model, f"done-{model}",
+                {
+                    "collector_model": model, "round": 1,
+                    "question": "推荐一款测试产品", "web_body": f"{model} 已完成",
+                },
+                self.root / "results",
+            )
+        queued = self.queue.finish(
+            claimed["id"], claimed["lease_token"], {"status": "retrying"}
+        )
+        self.assertEqual(queued["completed_steps"], 4)
+        with self.queue._connection() as connection:
+            connection.execute(
+                "UPDATE remote_tasks SET next_attempt_epoch=0 WHERE id=?",
+                (claimed["id"],),
+            )
+        only_doubao_ready = {
+            model: {"ready": model == "doubao"} for model in (
+                "doubao", "yuanbao", "wenxin", "quark", "deepseek", "kimi"
+            )
+        }
+        resumed = self.queue.claim("desktop", only_doubao_ready)
+        self.assertIsNotNone(resumed)
+        self.assertEqual(resumed["id"], monitor["current_task"]["id"])
+        self.assertEqual(resumed["completed_rounds"]["yuanbao"], [1])
+
     def test_paid_monitor_creates_exactly_one_new_task_on_next_natural_day(self):
         monitor = self.queue.create_paid_monitor(self._paid_payload("daily-user"))
         first_task_id = monitor["current_task"]["id"]
