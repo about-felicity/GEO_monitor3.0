@@ -19,6 +19,25 @@ from windows_worker_sdk.runner import (
 
 
 class WindowsWorkerSDKTests(unittest.TestCase):
+    def test_completed_model_skips_collector_creation_and_readiness(self):
+        task = {
+            "id": "already-complete", "lease_token": "lease",
+            "task_kind": "paid_monitor", "questions": ["question"],
+            "rounds": 1, "model_rounds": {"yuanbao": 1},
+            "question_mode": "interleaved",
+            "completed_rounds": {"yuanbao": [1]},
+        }
+
+        def must_not_create(_model):
+            raise AssertionError("completed provider must not be initialized")
+
+        with tempfile.TemporaryDirectory() as directory:
+            runner = WorkerRunner(
+                object(), "worker", must_not_create, object(),
+                LocalSpool(Path(directory)),
+            )
+            runner._run_model(task, "yuanbao", threading.Event())
+
     def test_readiness_never_starts_direct_kimi_collector(self):
         created = []
 

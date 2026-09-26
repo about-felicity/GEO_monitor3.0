@@ -385,6 +385,12 @@ class WorkerRunner:
         completed = {
             int(item) for item in (task.get("completed_rounds") or {}).get(model_id, [])
         }
+        # A resumed task may contain models whose server checkpoints are
+        # already complete. Do not construct or probe those collectors: a
+        # later logout of an already-finished provider must not turn a fully
+        # collected task back into retrying/queued state during finalization.
+        if schedule and all(number in completed for number in range(1, len(schedule) + 1)):
+            return
         persisted_fingerprints = task.get("answer_fingerprints") or {}
         model_fingerprints = persisted_fingerprints.get(model_id) or {}
         seen_answers: dict[str, set[str]] = {
