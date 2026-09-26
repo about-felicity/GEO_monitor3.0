@@ -9,13 +9,13 @@ mkdir -p runtime/web_results runtime/logs
     node scripts/verify-production-assets.mjs
 )
 
-python3 -u doubao_dashboard_server.py >runtime/logs/dashboard.out.log 2>runtime/logs/dashboard.err.log &
+python3 -u doubao_dashboard_server.py >>runtime/logs/dashboard.out.log 2>>runtime/logs/dashboard.err.log &
 backend_pid=$!
 
 (
   cd yuanbao_monitor/dashboard
   node node_modules/vinext/dist/cli.js start -H 0.0.0.0 -p 3000
-) >runtime/logs/frontend.out.log 2>runtime/logs/frontend.err.log &
+) >>runtime/logs/frontend.out.log 2>>runtime/logs/frontend.err.log &
 frontend_pid=$!
 
 trap 'kill "$backend_pid" "$frontend_pid" 2>/dev/null || true' TERM INT

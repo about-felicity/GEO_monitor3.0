@@ -9,6 +9,7 @@
 - 任务管理：`https://www.ifbcy.com/geo/tasks`
 - 健康检查：`https://www.ifbcy.com/geo/api/health`
 - 百一电子案例：`https://www.ifbcy.com/geo/bydz/`
+- 大海鲜生案例：`https://www.ifbcy.com/geo/dhxs/`
 
 ## 1. 部署架构
 
@@ -28,7 +29,7 @@
 
 服务器不运行浏览器、不安装模拟器，也不保存模型账号 Cookie。Windows Worker 只主动访问服务器的 HTTPS 地址，不需要公网 IP、端口映射或开放入站端口。
 
-任务队列保证：全局单活动任务、任务内模型并行、单模型轮次串行、心跳续租、断点续跑和幂等回传。即时诊断会抢占付费用户每日监控；诊断完成后，每日监控从已经保存的轮次继续。
+任务队列保证：全局单活动任务、任务内模型并行、单模型轮次串行、心跳续租、断点续跑和幂等回传。即时诊断会抢占付费用户每日监控；诊断完成后，每日监控从已经保存的轮次继续。每日监控中的 DeepSeek 第一次可立即采集，后续新提问至少间隔 5 分钟；等待期间持续续租并响应诊断抢占，Worker 重启后限频时间点仍然有效。即时诊断不受该限频影响。
 
 ## 2. 哪些代码部署到服务器
 
@@ -259,7 +260,9 @@ python tools/deploy_enterprise_zero_downtime.py
 
 脚本会构建备用槽位、验证健康后切换 Nginx，失败时保留原槽位。不要仅凭退出码判断成功，发布后仍需执行线上健康和 Worker/队列检查。
 
-百一电子案例位于相邻的 `../anli/`，不属于本项目主前端。构建与发布使用：
+百一电子与大海鲜生案例位于相邻的 `../anli/`，不属于本项目主前端。发布脚本会分别构建并验证 `/geo/bydz/` 和 `/geo/dhxs/`：
+
+大海鲜生案例的六平台数据由 `tools/export_remote_case_report.py` 从持久化队列导出，再由 `tools/build_dhxs_case_data.py` 生成；不得使用原社媒数据伪造大模型平台轮次。
 
 ```powershell
 python tools/deploy_bydz_case_panel.py

@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from monitor_core.quality import answer_quality_reason, repair_fragmented_answer
+from windows_enterprise_worker.analyzer import judge_answer_relevance
 from windows_worker_sdk.contracts import CapturedAnswer, ProgressCallback
 
 
@@ -27,11 +28,48 @@ DEFAULT_ADB = Path(r"D:\Program Files\Microvirt\MEmu\adb.exe")
 CREATE_NO_WINDOW = 0x08000000 if os.name == "nt" else 0
 
 
+def _installed_chrome_major() -> int | None:
+    """Read Chrome's installed major without launching another browser window."""
+    if os.name != "nt":
+        return None
+    try:
+        import winreg
+
+        for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+            for view in (0, winreg.KEY_WOW64_64KEY, winreg.KEY_WOW64_32KEY):
+                try:
+                    with winreg.OpenKey(hive, r"Software\Google\Chrome\BLBeacon", 0, winreg.KEY_READ | view) as key:
+                        version = str(winreg.QueryValueEx(key, "version")[0])
+                        return int(version.split(".", 1)[0])
+                except (FileNotFoundError, OSError, ValueError):
+                    continue
+    except ImportError:
+        return None
+    return None
+
+
+def _matching_bundled_chromedriver() -> Path | None:
+    major = _installed_chrome_major()
+    if major is None:
+        return None
+    candidates = (
+        ROOT / "runtime" / f"chromedriver-{major}" / "chromedriver-win64" / "chromedriver.exe",
+        ROOT / "runtime" / f"chromedriver-{major}" / "chromedriver.exe",
+    )
+    return next((path for path in candidates if path.is_file()), None)
+
+
 def _now() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
-def _validate_provider_answer(model_id: str, question: str, body: str) -> None:
+def _validate_provider_answer(
+    model_id: str,
+    question: str,
+    body: str,
+    *,
+    captured_question: str = "",
+) -> None:
     """Reject provider errors, page chrome and cross-topic replies before upload."""
     text = str(body or "").strip()
     if model_id == "kimi" and any(marker in text for marker in (
@@ -51,7 +89,14 @@ def _validate_provider_answer(model_id: str, question: str, body: str) -> None:
             "quark": "千问", "deepseek": "DeepSeek", "kimi": "Kimi",
         }.get(model_id, model_id)
         raise RuntimeError(f"{display} 正文定位命中页面导航或重复提问，本轮作废并自动重试")
-    quality_reason = answer_quality_reason(question, text)
+    expected_key = re.sub(r"\s+", "", str(question or "")).casefold()
+    captured_key = re.sub(r"\s+", "", str(captured_question or "")).casefold()
+    quality_reason = answer_quality_reason(
+        question,
+        text,
+        semantic_judge=judge_answer_relevance,
+        question_verified=bool(expected_key and captured_key == expected_key),
+    )
     if quality_reason:
         display = {
             "doubao": "豆包", "yuanbao": "腾讯元宝", "wenxin": "文心一言",
@@ -351,8 +396,8 @@ def _run_process(
     environment.setdefault("PYTHONUTF8", "1")
     environment.setdefault("PYTHONIOENCODING", "utf-8")
     environment.setdefault("PYTHONUNBUFFERED", "1")
-    bundled_driver = ROOT / "runtime" / "chromedriver-151" / "chromedriver-win64" / "chromedriver.exe"
-    if bundled_driver.is_file():
+    bundled_driver = _matching_bundled_chromedriver()
+    if bundled_driver is not None:
         environment.setdefault("GEO_CHROMEDRIVER_PATH", str(bundled_driver))
     process = subprocess.Popen(
         command, cwd=str(cwd), env=environment, text=True, encoding="utf-8",
@@ -486,77 +531,6 @@ class SubprocessCollector:
         return {"ready": True, "message": f"{self.model_id} collector configured"}
 
 
-class KimiExtensionCollector(SubprocessCollector):
-    """Independent Kimi collector backed by the user's Chrome extension."""
-
-    model_id = "kimi"
-    batch_collection_enabled = True
-
-    def __init__(self) -> None:
-        from .kimi_extension import KimiExtensionClient
-
-        self.client = KimiExtensionClient()
-        self.task_id = "standalone"
-
-    def prepare_task(self, task_id: str, _task_kind: str) -> None:
-        self.task_id = re.sub(r"[^A-Za-z0-9_-]", "-", str(task_id or ""))[:80] or "task"
-
-    def check_ready(self) -> dict[str, Any]:
-        return self.client.probe()
-
-    def _result(self, question: str, row: dict[str, Any], started: str) -> CapturedAnswer:
-        captured_question = _validate_collected_question(self.model_id, question, row)
-        value = _sanitize_provider_result(self.model_id, question, row)
-        value["captured_question"] = captured_question or question
-        _validate_provider_answer(self.model_id, question, str(value.get("body") or ""))
-        return _captured(value, mode="kimi_chrome_extension", started=started)
-
-    def collect_new_conversation(
-        self, question: str, round_number: int, progress: ProgressCallback
-    ) -> CapturedAnswer:
-        started = _now()
-        _resource_gate(progress, wait=True)
-        with _activity(self.model_id):
-            rows = self.client.run_job(
-                job_id=f"geo-{self.task_id}-kimi-{round_number}",
-                questions=[question], rounds=1, progress=progress,
-                timeout=int(os.environ.get("GEO_KIMI_EXTENSION_TIMEOUT", "240")),
-            )
-        return self._result(question, rows[0], started)
-
-    def collect_batch(
-        self, rounds: list[tuple[int, str]], progress: ProgressCallback
-    ) -> dict[int, CapturedAnswer]:
-        if len(rounds) < 2:
-            number, question = rounds[0]
-            return {number: self.collect_new_conversation(question, number, progress)}
-        questions = [question for _, question in rounds]
-        unique_questions = list(dict.fromkeys(questions))
-        if len(unique_questions) == 1:
-            job_questions, job_rounds = unique_questions, len(rounds)
-        elif len(unique_questions) == len(questions):
-            job_questions, job_rounds = questions, 1
-        else:
-            return {
-                number: self.collect_new_conversation(question, number, progress)
-                for number, question in rounds
-            }
-        started = _now()
-        _resource_gate(progress, wait=True)
-        with _activity(self.model_id):
-            rows = self.client.run_job(
-                job_id=f"geo-{self.task_id}-kimi-batch",
-                questions=job_questions, rounds=job_rounds, progress=progress,
-                timeout=int(os.environ.get("GEO_KIMI_EXTENSION_TIMEOUT", "240")),
-            )
-        if len(rows) != len(rounds):
-            raise RuntimeError(f"Kimi 插件批量回收仅完成 {len(rows)}/{len(rounds)} 轮")
-        return {
-            number: self._result(question, row, started)
-            for (number, question), row in zip(rounds, rows)
-        }
-
-
 class DoubaoCollector(SubprocessCollector):
     model_id = "doubao"
     serial = os.environ.get("GEO_DOUBAO_SERIAL", "127.0.0.1:21513")
@@ -583,7 +557,7 @@ class DoubaoCollector(SubprocessCollector):
     def _command(self, question: str, rounds: int, results: Path, temp: Path) -> list[str]:
         adb = Path(os.environ.get("GEO_ADB_PATH", DEFAULT_ADB))
         command = [
-            sys.executable, str(LEGACY_ROOT / "doubao_mumu_controller" / "doubao_mumu_web_pipeline.py"),
+            sys.executable, str(ROOT / "windows_enterprise_worker" / "doubao_resilient_pipeline.py"),
             "--question", question, "--rounds", str(rounds), "--device-index", os.environ.get("GEO_DOUBAO_DEVICE_INDEX", "1"),
             "--browser-slot", os.environ.get("GEO_DOUBAO_BROWSER_SLOT", "1"), "--adb", str(adb),
             "--login-wait-seconds", os.environ.get("GEO_LOGIN_WAIT_SECONDS", "30"),
@@ -602,7 +576,10 @@ class DoubaoCollector(SubprocessCollector):
         )
         payload["captured_question"] = captured_question or question
         payload.setdefault("chat_url", row.get("chat_url"))
-        _validate_provider_answer(self.model_id, question, str(payload.get("body") or ""))
+        _validate_provider_answer(
+            self.model_id, question, str(payload.get("body") or ""),
+            captured_question=captured_question,
+        )
         return _captured(payload, mode="emulator_question_chrome_capture", started=started)
 
     def collect_batch_progressive(
@@ -714,7 +691,26 @@ class YuanbaoCollector(SubprocessCollector):
             return {"ready": False, "message": f"ADB 不存在：{adb}"}
         check = subprocess.run([str(adb), "-s", self.serial, "get-state"], capture_output=True, text=True, creationflags=CREATE_NO_WINDOW, timeout=12)
         ready = check.returncode == 0 and "device" in check.stdout
-        return {"ready": ready, "message": "元宝模拟器在线，网页账号将在首轮校验" if ready else "元宝模拟器离线"}
+        if not ready:
+            return {"ready": False, "message": "元宝模拟器离线"}
+        legacy_path = str(LEGACY_ROOT)
+        if legacy_path not in sys.path:
+            sys.path.insert(0, legacy_path)
+        try:
+            from yuanbao_monitor.bowser import yuanbao_web_identity
+
+            identity = yuanbao_web_identity(
+                int(os.environ.get("GEO_YUANBAO_CHROME_PORT", "9222"))
+            )
+        except Exception as exc:
+            return {
+                "ready": False,
+                "message": f"元宝网页需要重新登录：{str(exc)[:160]}",
+            }
+        return {
+            "ready": True,
+            "message": f"元宝模拟器与网页账号均在线（{identity.get('masked') or '已登录'}）",
+        }
 
     def collect_new_conversation(self, question: str, round_number: int, progress: ProgressCallback) -> CapturedAnswer:
         return self.collect_batch([(round_number, question)], progress)[round_number]
@@ -761,7 +757,10 @@ class YuanbaoCollector(SubprocessCollector):
             if incomplete_reason:
                 raise RuntimeError(f"元宝第 {number} 轮正文疑似截断：{incomplete_reason}")
             row["body_capture_complete"] = True
-            _validate_provider_answer(self.model_id, question, str(row.get("body") or ""))
+            _validate_provider_answer(
+                self.model_id, question, str(row.get("body") or ""),
+                captured_question=captured_question,
+            )
             output[number] = _captured(
                 row, mode="yuanbao_emulator_burst_capture", started=started,
             )
@@ -813,7 +812,9 @@ class BridgeCollector(SubprocessCollector):
         value = _sanitize_provider_result(self.model_id, question, value)
         value["captured_question"] = captured_question
         body = str(value.get("body") or value.get("reply") or value.get("web_body") or "")
-        _validate_provider_answer(self.model_id, question, body)
+        _validate_provider_answer(
+            self.model_id, question, body, captured_question=captured_question,
+        )
         if self.model_id == "deepseek":
             sources = [item for item in value.get("sources") or [] if isinstance(item, dict)]
             if len("".join(body.split())) < 120 and len(sources) >= 3:
@@ -849,6 +850,7 @@ class BridgeCollector(SubprocessCollector):
             _validate_provider_answer(
                 self.model_id, question,
                 str(result.get("body") or result.get("reply") or result.get("web_body") or ""),
+                captured_question=captured_question,
             )
             captured[number] = _captured(
                 result, mode=f"{self.model_id}_browser_burst_capture", started=started,
@@ -911,6 +913,7 @@ class QuarkQueueCollector(SubprocessCollector):
                     _validate_provider_answer(
                         self.model_id, question,
                         str(result.get("body") or result.get("reply") or result.get("web_body") or ""),
+                        captured_question=captured_question,
                     )
                     return _captured(result, mode="quark_extension_background", started=started)
                 if state in {"failed", "cancelled"}:
@@ -981,6 +984,7 @@ class QuarkQueueCollector(SubprocessCollector):
                         _validate_provider_answer(
                             self.model_id, question,
                             str(result.get("body") or result.get("reply") or result.get("web_body") or ""),
+                            captured_question=captured_question,
                         )
                         captured = _captured(
                             result, mode="quark_extension_burst_capture", started=started,
@@ -1028,8 +1032,6 @@ def create_collector(model_id: str):
         return DoubaoCollector()
     if normalized == "yuanbao":
         return YuanbaoCollector()
-    if normalized == "kimi":
-        return KimiExtensionCollector()
     if normalized in {"wenxin", "deepseek"}:
         return BridgeCollector(normalized)
     if normalized == "quark":

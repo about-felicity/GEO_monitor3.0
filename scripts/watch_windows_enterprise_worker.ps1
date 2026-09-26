@@ -22,8 +22,15 @@ if (Test-Path -LiteralPath $HealthPath) {
     $healthAge = ($now - (Get-Item -LiteralPath $HealthPath).LastWriteTime).TotalSeconds
 }
 $previousFailures = 0
+$previousState = $null
 if (Test-Path -LiteralPath $WatchdogPath) {
-    try { $previousFailures = [int]((Get-Content -Raw -LiteralPath $WatchdogPath | ConvertFrom-Json).stale_checks) } catch { $previousFailures = 0 }
+    try {
+        $previousState = Get-Content -Raw -LiteralPath $WatchdogPath | ConvertFrom-Json
+        $previousFailures = [int]$previousState.stale_checks
+    } catch {
+        $previousState = $null
+        $previousFailures = 0
+    }
 }
 $connectionAge = [double]::PositiveInfinity
 $connectionOk = $false
@@ -63,10 +70,24 @@ $quarkRoot = Join-Path (Split-Path -Parent $ProjectRoot) "kuake"
 $quarkExtension = Join-Path $quarkRoot "extension"
 $quarkExe = "C:\Program Files\Quark\quark.exe"
 $quarkUrl = "https://www.qianwen.com/quarkchat?entry=homepage&entry_l2=bar_switch_active"
+$quarkReceiverStart = Join-Path $quarkRoot "start_monitor.ps1"
 $quarkProcess = Get-Process -Name "quark" -ErrorAction SilentlyContinue | Select-Object -First 1
 $quarkHealth = $null
 try { $quarkHealth = Invoke-RestMethod -Uri "http://127.0.0.1:8765/api/health" -TimeoutSec 3 } catch {}
-$expectedQuarkRevision = "20260905-quark-burst-v1"
+$quarkReceiverAction = "healthy"
+if (-not $quarkHealth -and (Test-Path -LiteralPath $quarkReceiverStart)) {
+    try {
+        # A missing receiver cannot be repaired by opening more browser tabs.
+        # Start the local queue first, then let the extension reconnect to it.
+        & $quarkReceiverStart | Out-Null
+        $quarkHealth = Invoke-RestMethod -Uri "http://127.0.0.1:8765/api/health" -TimeoutSec 3
+        $quarkReceiverAction = "receiver_started"
+    } catch {
+        $quarkHealth = $null
+        $quarkReceiverAction = "receiver_unavailable"
+    }
+}
+$expectedQuarkRevision = "20260923-quark-network-answer-v4"
 $quarkRevisionMismatch = [bool](
     $quarkHealth -and $quarkHealth.extension_ready -and
     [string]$quarkHealth.extension_runtime_revision -ne $expectedQuarkRevision
@@ -75,8 +96,17 @@ $quarkReady = [bool](
     $quarkHealth -and $quarkHealth.extension_ready -and
     $quarkHealth.extension_collection_ready -and -not $quarkRevisionMismatch
 )
+$lastQuarkPageOpenedAt = [datetime]::MinValue
+if ($previousState -and $previousState.quark_last_page_opened_at) {
+    try { $lastQuarkPageOpenedAt = [datetime]$previousState.quark_last_page_opened_at } catch {}
+}
+$quarkPageCooldownElapsed = ($now - $lastQuarkPageOpenedAt).TotalMinutes -ge 10
 $quarkAction = "healthy"
-if (-not $quarkProcess -and (Test-Path -LiteralPath $quarkExe)) {
+if (-not $quarkHealth) {
+    # Do not create a new visible page every watchdog minute while the actual
+    # local queue is unavailable. The receiver action above is the repair.
+    $quarkAction = $quarkReceiverAction
+} elseif (-not $quarkProcess -and (Test-Path -LiteralPath $quarkExe)) {
     # The collector is an interactive browser integration and must render its
     # page in the signed-in desktop session.
     Start-Process -FilePath $quarkExe -WindowStyle Normal -ArgumentList @(
@@ -84,6 +114,7 @@ if (-not $quarkProcess -and (Test-Path -LiteralPath $quarkExe)) {
         "--load-extension=$quarkExtension",
         $quarkUrl
     )
+    $lastQuarkPageOpenedAt = $now
     $quarkAction = "browser_started"
 } elseif ($quarkRevisionMismatch) {
     $reloadScript = Join-Path $ProjectRoot "scripts\reload_quark_extension.py"
@@ -94,9 +125,12 @@ if (-not $quarkProcess -and (Test-Path -LiteralPath $quarkExe)) {
     } else {
         $quarkAction = "extension_runtime_stale"
     }
-} elseif (-not $quarkReady -and (Test-Path -LiteralPath $quarkExe)) {
+} elseif (-not $quarkReady -and $quarkPageCooldownElapsed -and (Test-Path -LiteralPath $quarkExe)) {
     Start-Process -FilePath $quarkExe -WindowStyle Normal -ArgumentList @($quarkUrl)
+    $lastQuarkPageOpenedAt = $now
     $quarkAction = "collection_page_opened"
+} elseif (-not $quarkReady) {
+    $quarkAction = "waiting_for_extension"
 }
 
 $os = Get-CimInstance Win32_OperatingSystem
@@ -112,6 +146,8 @@ $state = [ordered]@{
     stale_checks = $staleChecks
     quark_process = [bool]$quarkProcess
     quark_ready = $quarkReady
+    quark_receiver_action = $quarkReceiverAction
+    quark_last_page_opened_at = if ($lastQuarkPageOpenedAt -eq [datetime]::MinValue) { "" } else { $lastQuarkPageOpenedAt.ToString("o") }
     quark_extension_version = if ($quarkHealth) { [string]$quarkHealth.extension_version } else { "" }
     quark_extension_runtime_revision = if ($quarkHealth) { [string]$quarkHealth.extension_runtime_revision } else { "" }
     quark_action = $quarkAction

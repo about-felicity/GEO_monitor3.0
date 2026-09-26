@@ -262,6 +262,8 @@ class RemoteTaskQueue:
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._paid_dashboard_cache_lock = threading.Lock()
+        self._paid_dashboard_summary_cache: dict[str, tuple[tuple[Any, ...], dict[str, Any]]] = {}
         self._initialize()
 
     def _connect(self) -> sqlite3.Connection:
@@ -2856,7 +2858,34 @@ class RemoteTaskQueue:
             },
         }
 
-    def paid_monitor_dashboard(self, customer_slug: str) -> dict[str, Any] | None:
+    def paid_monitor_access_allowed(self, customer_slug: str) -> bool:
+        """Check public panel access without constructing any historical report.
+
+        This path is deliberately constant-cost because Nginx calls it for every
+        paid-panel page request. Building the dashboard here used to duplicate
+        the SSR/dashboard work and could terminate the frontend under load.
+        """
+        customer_slug = str(customer_slug or "").strip().lower()
+        match = re.fullmatch(r"paid-([a-f0-9]{24})", customer_slug)
+        if not match:
+            return False
+        with self._connection() as connection:
+            row = connection.execute(
+                "SELECT is_paid,starts_on,expires_on FROM paid_monitors "
+                "WHERE substr(id,1,24)=? LIMIT 1",
+                (match.group(1),),
+            ).fetchone()
+        if row is None:
+            return False
+        today = datetime.now(BEIJING).date().isoformat()
+        return bool(
+            int(row["is_paid"] or 0)
+            and str(row["starts_on"] or "") <= today <= str(row["expires_on"] or "")
+        )
+
+    def paid_monitor_dashboard(
+        self, customer_slug: str, *, include_audit: bool = True,
+    ) -> dict[str, Any] | None:
         """Build the customer-facing, cross-day monitor panel from persisted runs.
 
         Daily values deliberately come from ``diagnosis_report`` so a value shown
@@ -2875,8 +2904,11 @@ class RemoteTaskQueue:
             if monitor is None:
                 return None
             run_rows = connection.execute(
-                "SELECT run_date,task_id FROM paid_monitor_runs WHERE monitor_id=? "
-                "ORDER BY run_date DESC LIMIT 90",
+                "SELECT runs.run_date,runs.task_id,"
+                "tasks.completed_steps AS task_completed_steps,tasks.status AS task_status "
+                "FROM paid_monitor_runs AS runs "
+                "LEFT JOIN remote_tasks AS tasks ON tasks.id=runs.task_id "
+                "WHERE runs.monitor_id=? ORDER BY runs.run_date DESC LIMIT 90",
                 (monitor["id"],),
             ).fetchall()
 
@@ -2894,8 +2926,28 @@ class RemoteTaskQueue:
                 "days": [],
                 "latest": None,
                 "competitors": [],
+                "brand_landscape": [],
+                "target_brand": None,
+                "answers": [],
                 "sources": [],
             }
+
+        summary_signature = (
+            str(monitor.get("updated_at") or ""),
+            tuple(
+                (
+                    str(row["run_date"] or ""), str(row["task_id"] or ""),
+                    int(row["task_completed_steps"] or 0),
+                    str(row["task_status"] or ""),
+                )
+                for row in run_rows
+            ),
+        )
+        if not include_audit:
+            with self._paid_dashboard_cache_lock:
+                cached = self._paid_dashboard_summary_cache.get(customer_slug)
+            if cached and cached[0] == summary_signature:
+                return deepcopy(cached[1])
 
         days: list[dict[str, Any]] = []
         for run_row in reversed(run_rows):
@@ -2929,6 +2981,8 @@ class RemoteTaskQueue:
                 "competitors": report.get("competitors") or [],
                 "sources": report.get("sources") or [],
                 "source_analysis": report.get("source_analysis") or {},
+                "answers": report.get("answers") or [],
+                "quality": report.get("quality") or {},
             })
 
         data_days = days
@@ -2949,8 +3003,12 @@ class RemoteTaskQueue:
 
         competitor_index: dict[str, dict[str, Any]] = {}
         source_index: dict[str, dict[str, Any]] = {}
+        audit_answers: list[dict[str, Any]] = []
         day_count = max(1, len(data_days))
         for day in data_days:
+            for answer in day["answers"]:
+                if isinstance(answer, dict):
+                    audit_answers.append({**answer, "date": day["date"]})
             seen_competitors: set[str] = set()
             for competitor in day["competitors"]:
                 if not isinstance(competitor, dict):
@@ -2962,13 +3020,15 @@ class RemoteTaskQueue:
                 item = competitor_index.setdefault(key, {
                     "name": name, "visibility_total": 0.0, "mention_rounds": 0,
                     "recommended_mentions": 0, "models": set(), "products": set(),
-                    "active_days": 0,
+                    "active_days": 0, "model_visibility_total": Counter(),
                 })
                 item["visibility_total"] += float(competitor.get("visibility_score") or 0)
                 item["mention_rounds"] += int(competitor.get("mention_rounds") or 0)
                 item["recommended_mentions"] += int(competitor.get("recommended_mentions") or 0)
                 item["models"].update(str(value) for value in competitor.get("mention_models") or [])
                 item["products"].update(str(value) for value in competitor.get("products") or [])
+                for model, value in (competitor.get("model_visibility") or {}).items():
+                    item["model_visibility_total"][str(model)] += float(value or 0)
                 if key not in seen_competitors:
                     item["active_days"] += 1
                     seen_competitors.add(key)
@@ -2998,12 +3058,103 @@ class RemoteTaskQueue:
             "models": sorted(item["models"]),
             "products": sorted(item["products"]),
             "active_days": item["active_days"],
+            "model_visibility": {
+                model: round(float(value) / day_count, 1)
+                for model, value in item["model_visibility_total"].items()
+            },
+            "is_target": False,
         } for item in competitor_index.values()]
         competitors.sort(key=lambda item: (-item["visibility_score"], -item["mention_rounds"], item["name"]))
+
+        target_model_visibility = {
+            model: round(
+                sum(
+                    next(
+                        (
+                            float(metric.get("recommendation_rate") or 0)
+                            for metric in day["models"]
+                            if str(metric.get("id") or "") == model
+                        ),
+                        0.0,
+                    )
+                    for day in data_days
+                ) / day_count,
+                1,
+            )
+            for model in DIAGNOSIS_MODELS
+        }
+        target_brand = {
+            "name": monitor["brand_name"],
+            "visibility_score": round(
+                sum(float(day["overall_rate"]) for day in data_days) / day_count, 1
+            ),
+            "mention_rounds": sum(int(day["recommended_rounds"]) for day in data_days),
+            "recommended_mentions": sum(int(day["recommended_rounds"]) for day in data_days),
+            "models": sorted({
+                str(metric.get("id") or "")
+                for day in data_days for metric in day["models"]
+                if int(metric.get("recommended_rounds") or 0) > 0
+            }),
+            "products": [monitor["product_name"]] if monitor["product_name"] else [],
+            "active_days": sum(1 for day in data_days if int(day["recommended_rounds"]) > 0),
+            "model_visibility": target_model_visibility,
+            "is_target": True,
+        }
+        brand_landscape = [target_brand, *competitors]
+        brand_landscape.sort(
+            key=lambda item: (-item["visibility_score"], -item["mention_rounds"], item["name"])
+        )
+        for rank, item in enumerate(brand_landscape, start=1):
+            item["rank"] = rank
         sources = [{**item, "models": sorted(item["models"])} for item in source_index.values()]
         sources.sort(key=lambda item: (-item["citation_count"], -item["active_days"], item["domain"]))
 
-        return {
+        # The same answer records are needed internally for aggregation, but
+        # returning them both under every day and at the top level doubles a
+        # large response. Keep exactly one audit copy and omit it entirely from
+        # lightweight polling/authorization requests.
+        if include_audit:
+            public_days = [
+                {key: value for key, value in day.items() if key != "answers"}
+                for day in days
+            ]
+        else:
+            # Trend rendering only needs each competitor's daily score. Do not
+            # repeat full products, source lists and quality structures in the
+            # 15-second summary polling response.
+            public_days = []
+            for day in days:
+                compact = {
+                    key: value for key, value in day.items()
+                    if key not in {"answers", "sources", "source_analysis", "quality", "competitors"}
+                }
+                compact["competitors"] = [
+                    {
+                        "name": str(item.get("name") or ""),
+                        "visibility_score": float(item.get("visibility_score") or 0),
+                        "model_visibility": item.get("model_visibility") or {},
+                    }
+                    for item in day["competitors"] if isinstance(item, dict)
+                ]
+                public_days.append(compact)
+        public_latest = public_days[-1] if public_days else None
+        audit_summary = {
+            "answer_count": len(audit_answers),
+            "body_complete_rounds": sum(
+                1 for answer in audit_answers if answer.get("body_capture_complete")
+            ),
+            "source_complete_rounds": sum(
+                1 for answer in audit_answers if answer.get("source_capture_complete")
+            ),
+            "total_body_chars": sum(int(answer.get("body_length") or 0) for answer in audit_answers),
+            "captured_sources": sum(len(answer.get("sources") or []) for answer in audit_answers),
+            "expected_sources": sum(
+                int(answer.get("expected_source_count") or 0) for answer in audit_answers
+            ),
+            "unique_sources": len(sources),
+        }
+
+        dashboard = {
             "customer_slug": customer_slug,
             "access_allowed": True,
             "monitor": {
@@ -3018,11 +3169,23 @@ class RemoteTaskQueue:
                 "updated_at": monitor["updated_at"],
             },
             "current_task": current_task,
-            "days": days,
-            "latest": latest,
+            "days": public_days,
+            "latest": public_latest,
             "competitors": competitors,
-            "sources": sources,
+            "brand_landscape": brand_landscape,
+            "target_brand": target_brand,
+            "answers": audit_answers if include_audit else [],
+            "audit_summary": audit_summary,
+            "sources": sources if include_audit else [],
         }
+        if not include_audit:
+            with self._paid_dashboard_cache_lock:
+                if len(self._paid_dashboard_summary_cache) >= 32:
+                    self._paid_dashboard_summary_cache.clear()
+                self._paid_dashboard_summary_cache[customer_slug] = (
+                    summary_signature, deepcopy(dashboard),
+                )
+        return dashboard
 
     def cancel(self, task_id: str) -> dict[str, Any] | None:
         with self._connection() as connection:

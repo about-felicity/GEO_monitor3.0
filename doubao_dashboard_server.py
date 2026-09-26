@@ -129,6 +129,7 @@ _SOURCE_INTERSECTION_LOCKS = defaultdict(threading.Lock)
 _SOURCE_INTERSECTION_BUILDING = set()
 _SOURCE_INTERSECTION_LAST_VALIDATED = {}
 _SOURCE_INTERSECTION_LOCK = threading.Lock()
+_PAID_DASHBOARD_LOCKS = defaultdict(threading.Lock)
 
 
 def _process_alive(process):
@@ -8433,8 +8434,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 paid_match = re.fullmatch(r"/geo/(paid-[a-f0-9]{24})/?", original_uri, re.I)
                 paid_access = False
                 if paid_match and REMOTE_TASKS_ENABLED:
-                    payload = REMOTE_TASK_QUEUE.paid_monitor_dashboard(paid_match.group(1).lower())
-                    paid_access = bool(payload and payload.get("access_allowed"))
+                    paid_access = REMOTE_TASK_QUEUE.paid_monitor_access_allowed(
+                        paid_match.group(1).lower()
+                    )
                 if allowed_manager_path or (
                     owned_match
                     and self.admin_can_access_report(identity, owned_match.group(1).lower())
@@ -8471,10 +8473,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             paid_match = re.fullmatch(r"/geo/(paid-[a-f0-9]{24})/?", original_uri, re.I)
             if paid_match and REMOTE_TASKS_ENABLED:
                 try:
-                    paid_payload = REMOTE_TASK_QUEUE.paid_monitor_dashboard(
+                    if REMOTE_TASK_QUEUE.paid_monitor_access_allowed(
                         paid_match.group(1).lower()
-                    )
-                    if paid_payload and paid_payload.get("access_allowed"):
+                    ):
                         self.send_bytes(b"", "text/plain; charset=utf-8", 204)
                         return
                 except (ValueError, TypeError, json.JSONDecodeError):
@@ -8599,9 +8600,30 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if not self.require_remote_tasks():
                 return
             try:
-                payload = REMOTE_TASK_QUEUE.paid_monitor_dashboard(
-                    paid_monitor_public_match.group(1).lower()
-                )
+                params = parse_qs(urlparse(self.path).query)
+                access_only = str(params.get("access", ["0"])[0]).strip().lower() in {
+                    "1", "true", "yes",
+                }
+                if access_only:
+                    allowed = REMOTE_TASK_QUEUE.paid_monitor_access_allowed(
+                        paid_monitor_public_match.group(1).lower()
+                    )
+                    if not allowed:
+                        self.send_json({"ok": False, "error": "监控面板不存在或已到期"}, 404)
+                        return
+                    self.send_json({"ok": True, "access_allowed": True})
+                    return
+                include_audit = str(params.get("audit", ["1"])[0]).strip().lower() not in {
+                    "0", "false", "no", "summary",
+                }
+                paid_slug = paid_monitor_public_match.group(1).lower()
+                # Collapse simultaneous refreshes for the same customer into
+                # one historical aggregation. Later callers then hit the
+                # task-signature cache instead of rebuilding the same report.
+                with _PAID_DASHBOARD_LOCKS[paid_slug]:
+                    payload = REMOTE_TASK_QUEUE.paid_monitor_dashboard(
+                        paid_slug, include_audit=include_audit,
+                    )
                 if not payload or not payload.get("access_allowed"):
                     self.send_json({"ok": False, "error": "监控面板不存在或已到期"}, 404)
                     return

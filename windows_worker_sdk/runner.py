@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 import json
+import math
 import os
 import threading
 import time
@@ -18,10 +19,12 @@ from .protocol import ServerClient, ServerError
 
 MODEL_ORDER = ("doubao", "yuanbao", "wenxin", "quark", "deepseek", "kimi")
 DIRECT_COLLECTION_MODELS = ("doubao", "yuanbao", "wenxin", "quark", "deepseek")
-DIAGNOSIS_FIXED_ROUNDS = {"deepseek": 2, "kimi": 2}
+DIAGNOSIS_FIXED_ROUNDS = {"deepseek": 2}
 # Start the longest serial collectors first. Quark does not consume a child
 # process slot, so it can still run immediately even when submitted last.
-EXECUTION_PRIORITY = ("kimi", "doubao", "yuanbao", "wenxin", "deepseek", "quark")
+EXECUTION_PRIORITY = ("doubao", "yuanbao", "wenxin", "deepseek", "quark")
+PAID_MONITOR_DEEPSEEK_INTERVAL_SECONDS = 5 * 60
+PAID_MONITOR_QUARK_COOLDOWN_SECONDS = 2 * 60
 
 
 def round_attempts(model_id: str) -> int:
@@ -152,7 +155,100 @@ class WorkerRunner:
         self._heartbeat_last: dict[tuple[str, str], float] = {}
         self._heartbeat_success: dict[tuple[str, str], float] = {}
         self._heartbeat_state: dict[tuple[str, str], dict[str, Any]] = {}
-        self._provider_last_completed: dict[str, float] = {}
+        self._paid_monitor_deepseek_lock = threading.Lock()
+        self._paid_monitor_quark_lock = threading.Lock()
+
+    def _wait_for_paid_monitor_deepseek_slot(
+        self, task_id: str, lease: str, question: str,
+    ) -> None:
+        """Reserve a persisted DeepSeek slot for paid daily monitoring.
+
+        The timestamp is stored below the worker spool so a worker restart or
+        task pre-emption cannot accidentally burst DeepSeek requests. While a
+        task waits, forced heartbeats keep its lease alive and make an arriving
+        interactive diagnosis able to pause it within a few seconds.
+        """
+        interval = max(0.0, float(os.environ.get(
+            "GEO_PAID_MONITOR_DEEPSEEK_INTERVAL_SECONDS",
+            str(PAID_MONITOR_DEEPSEEK_INTERVAL_SECONDS),
+        )))
+        if interval <= 0:
+            return
+        target = self.spool.root / "rate_limits" / "paid_monitor_deepseek.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with self._paid_monitor_deepseek_lock:
+            while True:
+                now = time.time()
+                last_started = 0.0
+                try:
+                    payload = json.loads(target.read_text(encoding="utf-8"))
+                    last_started = float(payload.get("last_started_epoch") or 0.0)
+                except (OSError, TypeError, ValueError, json.JSONDecodeError):
+                    pass
+                elapsed = max(0.0, now - last_started)
+                remaining = interval - elapsed
+                if last_started <= 0 or remaining <= 0:
+                    temporary = target.with_suffix(".tmp")
+                    temporary.write_text(json.dumps({
+                        "last_started_epoch": now,
+                        "interval_seconds": interval,
+                    }, separators=(",", ":")), encoding="utf-8")
+                    temporary.replace(target)
+                    return
+                self._check_control(
+                    task_id, lease, "deepseek", question,
+                    f"DeepSeek 每日监控限频中，约 {math.ceil(remaining)} 秒后开始下一次采集",
+                    force=True,
+                )
+                time.sleep(min(5.0, remaining))
+
+    def _wait_for_paid_monitor_quark_slot(
+        self, task_id: str, lease: str, question: str,
+    ) -> None:
+        """Wait after the prior paid-monitor Qwen attempt before asking again."""
+        interval = max(0.0, float(os.environ.get(
+            "GEO_PAID_MONITOR_QUARK_COOLDOWN_SECONDS",
+            str(PAID_MONITOR_QUARK_COOLDOWN_SECONDS),
+        )))
+        if interval <= 0:
+            return
+        target = self.spool.root / "rate_limits" / "paid_monitor_quark.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with self._paid_monitor_quark_lock:
+            while True:
+                now = time.time()
+                last_finished = 0.0
+                try:
+                    payload = json.loads(target.read_text(encoding="utf-8"))
+                    last_finished = float(payload.get("last_finished_epoch") or 0.0)
+                except (OSError, TypeError, ValueError, json.JSONDecodeError):
+                    pass
+                remaining = interval - max(0.0, now - last_finished)
+                if last_finished <= 0 or remaining <= 0:
+                    return
+                self._check_control(
+                    task_id, lease, "quark", question,
+                    f"千问每日监控冷却中，约 {math.ceil(remaining)} 秒后开始下一次采集",
+                    force=True,
+                )
+                time.sleep(min(5.0, remaining))
+
+    def _mark_paid_monitor_quark_finished(self) -> None:
+        interval = max(0.0, float(os.environ.get(
+            "GEO_PAID_MONITOR_QUARK_COOLDOWN_SECONDS",
+            str(PAID_MONITOR_QUARK_COOLDOWN_SECONDS),
+        )))
+        if interval <= 0:
+            return
+        target = self.spool.root / "rate_limits" / "paid_monitor_quark.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with self._paid_monitor_quark_lock:
+            temporary = target.with_suffix(".tmp")
+            temporary.write_text(json.dumps({
+                "last_finished_epoch": time.time(),
+                "cooldown_seconds": interval,
+            }, separators=(",", ":")), encoding="utf-8")
+            temporary.replace(target)
 
     def _collector(self, model_id: str) -> Collector:
         with self._collector_lock:
@@ -211,18 +307,9 @@ class WorkerRunner:
 
         try:
             if model == "kimi":
-                collector = self._collector(model)
-                progress("已打开 Kimi 插件专用 Chrome，请完成登录")
-                deadline = time.monotonic() + 600
-                while time.monotonic() < deadline:
-                    state = collector.check_ready()
-                    if bool(state.get("ready", state.get("ok", False))):
-                        self._readiness_expires = 0.0
-                        self.client.finish_login(login_id, lease, "ready")
-                        return
-                    progress(str(state.get("message") or "等待 Kimi 登录")[:500])
-                    time.sleep(2)
-                raise TimeoutError("等待 Kimi 插件登录超时")
+                progress("Kimi 报告复用 DeepSeek 已审计数据，无需单独登录")
+                self.client.finish_login(login_id, lease, "ready")
+                return
 
             from web_collectors.browser import cookie_env_name
             from web_collectors.collector import BrowserCollector
@@ -438,11 +525,6 @@ class WorkerRunner:
                 # needlessly asks three new conversations to fill one gap.
                 if callable(prepare):
                     prepare(1)
-                if model_id == "kimi":
-                    # A rejected burst must enter the same cooldown as a
-                    # completed Kimi round before the reliable fallback tries
-                    # again; otherwise fallback itself can amplify rate limits.
-                    self._provider_last_completed[model_id] = time.monotonic()
                 self._check_control(
                     task_id, lease, model_id, first_question,
                     f"{model_id} 批量回收未完整，已自动切换可靠逐轮模式：{type(exc).__name__}",
@@ -453,17 +535,6 @@ class WorkerRunner:
                     return
                 if round_number in completed:
                     continue
-                # Kimi applies a tighter conversational rate limit than the
-                # other providers.  A short gap between its two diagnosis
-                # rounds prevents the provider's "有点累了" response without
-                # slowing the other five models, which continue in parallel.
-                if model_id == "kimi" and round_number not in batched:
-                    safe_gap = max(
-                        30, int(os.environ.get("GEO_KIMI_ROUND_GAP_SECONDS", "60"))
-                    )
-                    elapsed = time.monotonic() - self._provider_last_completed.get(model_id, 0.0)
-                    if elapsed < safe_gap:
-                        time.sleep(safe_gap - elapsed)
                 request_id = deterministic_request_id(task_id, model_id, round_number, question)
                 pending = self.spool.find_record(task_id, request_id)
                 if pending is not None:
@@ -489,9 +560,22 @@ class WorkerRunner:
                     try:
                         captured = batched.pop(round_number, None)
                         if captured is None:
-                            captured = collector.collect_new_conversation(question, round_number, progress)
-                        if model_id == "kimi":
-                            self._provider_last_completed[model_id] = time.monotonic()
+                            if task_kind == "paid_monitor" and model_id == "deepseek":
+                                self._wait_for_paid_monitor_deepseek_slot(
+                                    task_id, lease, question
+                                )
+                            if task_kind == "paid_monitor" and model_id == "quark":
+                                self._wait_for_paid_monitor_quark_slot(
+                                    task_id, lease, question
+                                )
+                                try:
+                                    captured = collector.collect_new_conversation(
+                                        question, round_number, progress
+                                    )
+                                finally:
+                                    self._mark_paid_monitor_quark_finished()
+                            else:
+                                captured = collector.collect_new_conversation(question, round_number, progress)
                         persist_capture(round_number, question, captured)
                         break
                     except TaskControl:
@@ -505,11 +589,6 @@ class WorkerRunner:
                             f"{model_id} 第 {round_number} 轮暂时未完成，正在自动恢复（{attempt}/{attempts}）",
                         )
                         retry_delay = min(20, 5 * attempt)
-                        if model_id == "kimi":
-                            retry_delay = max(
-                                retry_delay,
-                                int(os.environ.get("GEO_KIMI_RETRY_SECONDS", "60")),
-                            )
                         time.sleep(retry_delay)
                 else:  # pragma: no cover - defensive; the loop either succeeds or raises.
                     raise RuntimeError(str(last_error or "采集恢复失败"))
@@ -522,7 +601,13 @@ class WorkerRunner:
     def run_task(self, task: dict[str, Any]) -> None:
         task_id = str(task["id"])
         lease = str(task["lease_token"])
-        selected = [model for model in MODEL_ORDER if model in set(task.get("models") or [])]
+        requested = set(task.get("models") or [])
+        # Kimi is a report-only dimension generated from the task's audited
+        # DeepSeek rows. Never execute the retired direct Kimi collector, even
+        # for an old queued task that still contains "kimi" in models_json.
+        if "kimi" in requested:
+            requested.add("deepseek")
+        selected = [model for model in DIRECT_COLLECTION_MODELS if model in requested]
         unsupported = sorted(set(task.get("models") or []) - set(MODEL_ORDER))
         if unsupported or not selected:
             reason = "unsupported models: " + ", ".join(unsupported or ["none"])

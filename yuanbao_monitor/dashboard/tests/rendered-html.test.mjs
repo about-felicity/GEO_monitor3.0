@@ -328,11 +328,21 @@ test("付费用户使用独立的百一电子式每日趋势面板", async () =>
   const dashboard = await readFile(new URL("PaidCustomerDashboard.tsx", app), "utf8");
   const customerRoute = await readFile(new URL("[customer]/page.tsx", app), "utf8");
   const gate = await readFile(new URL("SiteAuthGate.tsx", app), "utf8");
-  for (const section of ["监测概览", "概率趋势", "竞品分析", "信源追踪"]) {
+  for (const section of ["监测概览", "概率趋势", "竞品分析", "正文审计", "信源审计"]) {
     assert.match(dashboard, new RegExp(section));
   }
+  for (const field of ["brand_landscape", "target_brand", "body_capture_complete", "source_capture_complete"]) {
+    assert.match(dashboard, new RegExp(field));
+  }
+  assert.match(dashboard, /自有品牌/);
   assert.match(dashboard, /api\/paid-monitor/);
+  assert.match(dashboard, /audit=0/);
+  assert.match(dashboard, /audit=1/);
+  assert.match(dashboard, /setInterval\(.*15000/);
+  assert.doesNotMatch(dashboard, /setInterval\(.*[, ]5000\)/);
   assert.match(customerRoute, /PaidCustomerDashboard/);
+  assert.match(customerRoute, /access=1/);
+  assert.doesNotMatch(customerRoute, /audit=0/);
   assert.match(customerRoute, /paid-\[a-f0-9\]\{24\}/);
   assert.match(gate, /paid-\[a-f0-9\]\{24\}/);
 });

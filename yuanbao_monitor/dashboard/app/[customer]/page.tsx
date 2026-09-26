@@ -33,7 +33,9 @@ export default async function CustomerDashboard({ params }: { params: Promise<{ 
     const apiPort = process.env.DOUBAO_DASHBOARD_PORT || "8765";
     const requestHeaders = await headers();
     const cookie = requestHeaders.get("cookie") || "";
-    const endpoint = isPaidMonitor ? `/api/paid-monitor/${reportKey}` : `/api/diagnosis/${reportKey}`;
+    const endpoint = isPaidMonitor
+      ? `/api/paid-monitor/${reportKey}?access=1`
+      : `/api/diagnosis/${reportKey}`;
     const response = await fetch(`http://127.0.0.1:${apiPort}${endpoint}`, {
       cache: "no-store",
       headers: cookie ? { Cookie: cookie } : undefined,

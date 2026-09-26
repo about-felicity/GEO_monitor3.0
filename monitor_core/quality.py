@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
+
+
+SemanticJudge = Callable[[str, str], bool | None]
 
 
 ERROR_MARKERS = (
@@ -150,6 +154,14 @@ def topic_matches(topic: str, body: str) -> bool:
             ("孕妇", "孕期", "怀孕", "妊娠", "准妈妈"),
             ("酸奶", "酸牛奶", "发酵乳", "乳酸菌饮品"),
         ),
+        # Banquet-liquor answers naturally use “婚宴/宴请用酒” and aroma
+        # categories instead of repeating the colloquial prompt word for word.
+        # Require both a banquet context and liquor evidence so ordinary wine,
+        # catering or event-planning copy still cannot pass this gate.
+        "宴会白酒选什么比较好": (
+            ("宴会", "宴请", "婚宴", "喜宴", "酒席", "商务宴", "家宴"),
+            ("白酒", "浓香型", "酱香型", "清香型", "茅台", "五粮液", "剑南春"),
+        ),
     }
     evidence_groups = semantic_evidence_groups.get(topic, ())
     if evidence_groups and all(
@@ -173,8 +185,27 @@ def topic_matches(topic: str, body: str) -> bool:
     )
     return matched >= required
 
-def answer_quality_reason(question: str, answer: str, *, minimum_length: int = 12) -> str:
-    """Reject empty/error replies and obvious cross-topic conversation mix-ups."""
+def answer_quality_reason(
+    question: str,
+    answer: str,
+    *,
+    minimum_length: int = 12,
+    semantic_judge: SemanticJudge | None = None,
+    question_verified: bool = False,
+) -> str:
+    """Reject invalid replies while treating lexical misses as uncertainty.
+
+    ``topic_matches`` is intentionally only a fast positive signal. Natural
+    language answers often use a category synonym instead of repeating the
+    prompt, so a lexical miss must not automatically become a rejection. The
+    worker can provide a bounded semantic judge for that ambiguous branch.
+
+    If the semantic service is temporarily unavailable, a response whose page
+    conversation has already been proven to contain the exact task question is
+    accepted. This prevents a transient classifier outage from making a valid
+    provider answer retry forever. Unverified captures retain the conservative
+    legacy behaviour.
+    """
     reason = invalid_answer_reason(answer, minimum_length=minimum_length)
     if reason:
         return reason
@@ -183,6 +214,20 @@ def answer_quality_reason(question: str, answer: str, *, minimum_length: int = 1
     if len(topic) >= 2:
 
         if not topic_matches(topic, body):
-
+            semantic_decision: bool | None = None
+            if semantic_judge is not None:
+                try:
+                    semantic_decision = semantic_judge(str(question or ""), str(answer or ""))
+                except Exception:
+                    # The caller decides the safe fallback through
+                    # ``question_verified``. A classifier outage is not an
+                    # answer-quality failure by itself.
+                    semantic_decision = None
+            if semantic_decision is True:
+                return ""
+            if semantic_decision is None and question_verified:
+                return ""
+            if semantic_decision is False:
+                return f"语义模型判定回答与问题主题不一致（“{expected_topic(question)}”）"
             return f"回答主题与问题不一致（未能确认“{expected_topic(question)}”相关内容）"
     return ""

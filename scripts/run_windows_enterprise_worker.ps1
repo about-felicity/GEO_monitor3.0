@@ -16,8 +16,11 @@ $env:GEO_DEEPSEEK_KEY_FILE = $DeepSeekFile
 $env:GEO_COLLECTOR_FACTORY = "windows_enterprise_worker.collectors:create_collector"
 $env:GEO_ANALYZER_FACTORY = "windows_enterprise_worker.analyzer:create_analyzer"
 $env:GEO_WORKER_ID = if ($env:GEO_WORKER_ID) { $env:GEO_WORKER_ID } else { "windows-office-01" }
-$env:GEO_MODEL_CONCURRENCY = if ($env:GEO_MODEL_CONCURRENCY) { $env:GEO_MODEL_CONCURRENCY } else { "6" }
-$env:GEO_SUBPROCESS_CONCURRENCY = if ($env:GEO_SUBPROCESS_CONCURRENCY) { $env:GEO_SUBPROCESS_CONCURRENCY } else { "4" }
+# Keep API-backed models parallel while limiting simultaneous local browser and
+# emulator children. Three or four heavyweight collectors at once can remain
+# heartbeating yet starve each other long enough to look stalled to customers.
+$env:GEO_MODEL_CONCURRENCY = if ($env:GEO_MODEL_CONCURRENCY) { $env:GEO_MODEL_CONCURRENCY } else { "4" }
+$env:GEO_SUBPROCESS_CONCURRENCY = if ($env:GEO_SUBPROCESS_CONCURRENCY) { $env:GEO_SUBPROCESS_CONCURRENCY } else { "2" }
 $env:GEO_QUARK_ROUND_ATTEMPTS = if ($env:GEO_QUARK_ROUND_ATTEMPTS) { $env:GEO_QUARK_ROUND_ATTEMPTS } else { "1" }
 $env:GEO_RESOURCE_WAIT_SECONDS = if ($env:GEO_RESOURCE_WAIT_SECONDS) { $env:GEO_RESOURCE_WAIT_SECONDS } else { "240" }
 $env:DOUBAO_APP_PSS_RESTART_MB = if ($env:DOUBAO_APP_PSS_RESTART_MB) { $env:DOUBAO_APP_PSS_RESTART_MB } else { "1250" }

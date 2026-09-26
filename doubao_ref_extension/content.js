@@ -331,7 +331,9 @@
           anchor_index: Number.MAX_SAFE_INTEGER,
           conversation_type: 3,
           direction: 1,
-          limit: 20,
+          // The visible reference total regularly exceeds 20. A limit of 20
+          // made complete capture mathematically impossible for those answers.
+          limit: 100,
           ext: {},
           filter: { index_list: [] },
           evaluate_ab_params: "",

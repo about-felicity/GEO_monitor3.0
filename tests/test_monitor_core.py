@@ -418,6 +418,63 @@ class QualityTests(unittest.TestCase):
             "这款常温酸奶口感醇厚，适合普通家庭作为早餐搭配。",
         ))
 
+    def test_banquet_liquor_semantic_wording_is_accepted(self):
+        from monitor_core.quality import answer_quality_reason
+        answer = (
+            "婚宴和商务宴请用酒要兼顾宾客接受度与预算。浓香型可考虑五粮液、"
+            "剑南春，偏好酱香型则可选择茅台或红花郎。"
+        )
+        self.assertFalse(answer_quality_reason("宴会白酒选什么比较好", answer))
+
+    def test_banquet_context_without_liquor_is_rejected(self):
+        from monitor_core.quality import answer_quality_reason
+        answer = "婚宴场地建议提前预订酒店，并确认桌数、菜单、灯光、摄影和宾客座位安排。"
+        self.assertTrue(answer_quality_reason("宴会白酒选什么比较好", answer))
+
+    def test_semantic_judge_accepts_generic_paraphrase_without_keyword_patch(self):
+        from monitor_core.quality import answer_quality_reason
+        calls = []
+
+        def judge(question, answer):
+            calls.append((question, answer))
+            return True
+
+        reason = answer_quality_reason(
+            "适合长途差旅的降噪耳机怎么选",
+            "经常坐飞机可优先看主动消除环境声、佩戴舒适度和续航表现。",
+            semantic_judge=judge,
+        )
+        self.assertEqual(reason, "")
+        self.assertEqual(len(calls), 1)
+
+    def test_semantic_judge_rejects_generic_cross_topic_answer(self):
+        from monitor_core.quality import answer_quality_reason
+        reason = answer_quality_reason(
+            "适合长途差旅的降噪耳机怎么选",
+            "这几款儿童牙膏含氟量适中，刷牙时注意不要吞咽。",
+            semantic_judge=lambda _question, _answer: False,
+        )
+        self.assertIn("语义模型判定", reason)
+
+    def test_verified_question_survives_semantic_judge_outage(self):
+        from monitor_core.quality import answer_quality_reason
+        answer = "经常坐飞机可优先看主动消除环境声、佩戴舒适度和续航表现。"
+        self.assertEqual(
+            answer_quality_reason(
+                "适合长途差旅的降噪耳机怎么选",
+                answer,
+                semantic_judge=lambda _question, _answer: None,
+                question_verified=True,
+            ),
+            "",
+        )
+        self.assertTrue(answer_quality_reason(
+            "适合长途差旅的降噪耳机怎么选",
+            answer,
+            semantic_judge=lambda _question, _answer: None,
+            question_verified=False,
+        ))
+
     def test_unrelated_serum_is_still_rejected_for_acne_topic(self):
         from monitor_core.quality import answer_quality_reason
         answer = "这款美白精华含烟酰胺和维生素C，可以改善暗沉并提亮肤色。"

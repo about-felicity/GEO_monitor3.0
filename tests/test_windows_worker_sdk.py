@@ -209,6 +209,194 @@ class WindowsWorkerSDKTests(unittest.TestCase):
         self.assertEqual(collector.single_rounds, [1, 2, 3])
         self.assertEqual([record["round"] for record in client.records], [1, 2, 3])
 
+    def test_paid_monitor_deepseek_rounds_are_persistently_spaced_five_minutes(self):
+        class Clock:
+            def __init__(self):
+                self.now = 1_000.0
+                self.sleeps = []
+
+            def time(self):
+                return self.now
+
+            def sleep(self, seconds):
+                self.sleeps.append(seconds)
+                self.now += seconds
+
+        class Client:
+            def __init__(self):
+                self.records = []
+                self.messages = []
+
+            def heartbeat(self, *args, **kwargs):
+                self.messages.append(kwargs.get("message", ""))
+                return {"cancel_requested": False, "pause_requested": False}
+
+            def submit_result(self, task_id, lease, model_id, request_id, record):
+                self.records.append(record)
+
+        class Collector:
+            batch_collection_enabled = False
+
+            def __init__(self, clock):
+                self.clock = clock
+                self.started = []
+
+            def check_ready(self):
+                return {"ready": True}
+
+            def collect_new_conversation(self, question, round_number, progress):
+                self.started.append(self.clock.now)
+                return CapturedAnswer(
+                    body=f"DeepSeek 第 {round_number} 轮完整回答",
+                    capture_identity=f"deepseek-document-{round_number}",
+                    body_capture_complete=True,
+                    source_capture_complete=True,
+                )
+
+        class Analyzer:
+            def analyze(self, *args):
+                return AnalysisResult(recommended=False)
+
+        clock = Clock()
+        client = Client()
+        collector = Collector(clock)
+        task = {
+            "id": "paid-deepseek-rate-limit", "lease_token": "lease",
+            "task_kind": "paid_monitor", "questions": ["question"],
+            "rounds": 2, "model_rounds": {"deepseek": 2},
+            "question_mode": "interleaved", "brand_name": "brand",
+            "product_name": "product", "completed_rounds": {},
+        }
+        with tempfile.TemporaryDirectory() as directory, \
+             mock.patch("windows_worker_sdk.runner.time.time", side_effect=clock.time), \
+             mock.patch("windows_worker_sdk.runner.time.sleep", side_effect=clock.sleep):
+            runner = WorkerRunner(
+                client, "worker", lambda _: collector, Analyzer(), LocalSpool(Path(directory))
+            )
+            runner._run_model(task, "deepseek", threading.Event())
+            restarted_task = dict(task, id="paid-deepseek-after-restart", rounds=1,
+                                  model_rounds={"deepseek": 1})
+            restarted_runner = WorkerRunner(
+                client, "worker", lambda _: collector, Analyzer(), LocalSpool(Path(directory))
+            )
+            restarted_runner._run_model(restarted_task, "deepseek", threading.Event())
+            limiter = Path(directory) / "rate_limits" / "paid_monitor_deepseek.json"
+            self.assertTrue(limiter.exists())
+        self.assertEqual(collector.started, [1_000.0, 1_300.0, 1_600.0])
+        self.assertEqual(sum(clock.sleeps), 600.0)
+        self.assertTrue(any("DeepSeek 每日监控限频中" in item for item in client.messages))
+
+    def test_paid_monitor_quark_waits_after_previous_attempt_finishes(self):
+        class Clock:
+            def __init__(self):
+                self.now = 1_000.0
+                self.sleeps = []
+
+            def time(self):
+                return self.now
+
+            def sleep(self, seconds):
+                self.sleeps.append(seconds)
+                self.now += seconds
+
+        class Client:
+            def __init__(self):
+                self.records = []
+                self.messages = []
+
+            def heartbeat(self, *args, **kwargs):
+                self.messages.append(kwargs.get("message", ""))
+                return {"cancel_requested": False, "pause_requested": False}
+
+            def submit_result(self, task_id, lease, model_id, request_id, record):
+                self.records.append(record)
+
+        class Collector:
+            batch_collection_enabled = False
+
+            def __init__(self, clock):
+                self.clock = clock
+                self.started = []
+
+            def check_ready(self):
+                return {"ready": True}
+
+            def collect_new_conversation(self, question, round_number, progress):
+                self.started.append(self.clock.now)
+                return CapturedAnswer(
+                    body=f"千问第 {round_number} 轮完整回答",
+                    capture_identity=f"quark-document-{round_number}",
+                    body_capture_complete=True,
+                    source_capture_complete=True,
+                )
+
+        class Analyzer:
+            def analyze(self, *args):
+                return AnalysisResult(recommended=False)
+
+        clock = Clock()
+        client = Client()
+        collector = Collector(clock)
+        task = {
+            "id": "paid-quark-cooldown", "lease_token": "lease",
+            "task_kind": "paid_monitor", "questions": ["question"],
+            "rounds": 2, "model_rounds": {"quark": 2},
+            "question_mode": "interleaved", "brand_name": "brand",
+            "product_name": "product", "completed_rounds": {},
+        }
+        with tempfile.TemporaryDirectory() as directory, \
+             mock.patch("windows_worker_sdk.runner.time.time", side_effect=clock.time), \
+             mock.patch("windows_worker_sdk.runner.time.sleep", side_effect=clock.sleep):
+            runner = WorkerRunner(
+                client, "worker", lambda _: collector, Analyzer(), LocalSpool(Path(directory))
+            )
+            runner._run_model(task, "quark", threading.Event())
+            limiter = Path(directory) / "rate_limits" / "paid_monitor_quark.json"
+            self.assertTrue(limiter.exists())
+        self.assertEqual(collector.started, [1_000.0, 1_120.0])
+        self.assertEqual(sum(clock.sleeps), 120.0)
+        self.assertTrue(any("千问每日监控冷却中" in item for item in client.messages))
+
+    def test_diagnosis_deepseek_is_not_delayed_by_paid_monitor_rate_limit(self):
+        class Client:
+            def heartbeat(self, *args, **kwargs):
+                return {"cancel_requested": False, "pause_requested": False}
+
+            def submit_result(self, *args, **kwargs):
+                return None
+
+        class Collector:
+            batch_collection_enabled = False
+
+            def check_ready(self):
+                return {"ready": True}
+
+            def collect_new_conversation(self, question, round_number, progress):
+                return CapturedAnswer(
+                    body=f"诊断第 {round_number} 轮完整回答",
+                    capture_identity=f"diagnosis-document-{round_number}",
+                    body_capture_complete=True,
+                    source_capture_complete=True,
+                )
+
+        class Analyzer:
+            def analyze(self, *args):
+                return AnalysisResult(recommended=False)
+
+        task = {
+            "id": "diagnosis-deepseek-no-delay", "lease_token": "lease",
+            "task_kind": "diagnosis", "questions": ["question"],
+            "rounds": 2, "model_rounds": {"deepseek": 2},
+            "question_mode": "interleaved", "brand_name": "brand",
+            "product_name": "product", "completed_rounds": {},
+        }
+        with tempfile.TemporaryDirectory() as directory, \
+             mock.patch("windows_worker_sdk.runner.time.sleep") as sleep:
+            WorkerRunner(
+                Client(), "worker", lambda _: Collector(), Analyzer(), LocalSpool(Path(directory))
+            )._run_model(task, "deepseek", threading.Event())
+        sleep.assert_not_called()
+
     def test_capture_deduplicates_and_rejects_false_completeness(self):
         captured = CapturedAnswer(
             body="complete answer",

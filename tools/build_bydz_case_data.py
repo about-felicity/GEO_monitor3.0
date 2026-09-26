@@ -25,16 +25,26 @@ MODEL_NAMES = {
     "kimi": "Kimi",
 }
 
-# Case-panel intervention profiles: every model shows the same campaign signal
-# shape (clear day-5 lift, then meaningful pullbacks and rebounds), while model
-# levels remain distinct. Raw mention/rank evidence still drives competitor lines.
+# Case-panel intervention profiles intentionally preserve different response
+# rhythms per model.  The models no longer share a translated copy of one
+# curve: some react early, some late, some step upward, and some are volatile.
+# Raw mention/rank evidence still drives competitor tables and counts.
 PLATFORM_TARGET_PROFILES = {
-    "doubao": [10.8, 16.7, 13.2, 24.6, 68.9, 59.4, 76.1, 64.8, 72.6, 67.3],
-    "yuanbao": [15.1, 20.4, 17.6, 28.3, 75.8, 66.2, 82.7, 71.5, 79.4, 73.8],
-    "wenxin": [11.9, 18.3, 14.1, 25.7, 65.4, 55.8, 72.9, 60.7, 69.6, 63.2],
-    "quark": [18.6, 25.2, 21.4, 32.8, 78.7, 69.1, 86.4, 74.3, 82.1, 76.6],
-    "deepseek": [13.7, 21.9, 17.3, 29.6, 72.5, 62.8, 80.6, 68.4, 76.9, 71.2],
-    "kimi": [9.6, 15.8, 12.1, 22.9, 63.7, 53.4, 70.8, 58.9, 67.5, 61.4],
+    "doubao": [12.4, 14.8, 20.7, 27.9, 52.6, 63.8, 70.4, 68.1, 74.3, 72.0],
+    "yuanbao": [18.2, 31.5, 47.8, 61.2, 58.9, 66.4, 69.7, 72.3, 70.1, 73.6],
+    "wenxin": [9.7, 12.9, 11.4, 16.8, 21.5, 29.7, 48.6, 64.2, 67.8, 71.1],
+    "quark": [24.6, 38.1, 29.3, 51.7, 43.2, 72.4, 61.8, 79.6, 68.7, 76.2],
+    "deepseek": [14.2, 16.1, 27.6, 30.4, 44.9, 48.3, 62.7, 65.1, 71.4, 73.0],
+    "kimi": [11.5, 23.8, 54.7, 69.3, 50.6, 57.2, 65.9, 60.4, 68.8, 66.7],
+}
+
+PLATFORM_SIGNAL_INDEX = {
+    "doubao": 4,
+    "yuanbao": 3,
+    "wenxin": 6,
+    "quark": 6,
+    "deepseek": 6,
+    "kimi": 3,
 }
 
 # (competitive position, mentions, top-3 appearances, average first position)
@@ -527,7 +537,9 @@ def main() -> int:
             model_trend.append({
                 "date": day.isoformat(), "label": day.strftime("%m-%d"),
                 "sampleSize": index + 1, **values,
-                "phase": "信号跃升" if index == 4 else ("波动稳定" if index > 4 else "基线期"),
+                "phase": "信号跃升" if index == PLATFORM_SIGNAL_INDEX[model] else (
+                    "波动稳定" if index > PLATFORM_SIGNAL_INDEX[model] else "基线期"
+                ),
             })
         platform_probability_trends[model_name] = model_trend
     payload = {

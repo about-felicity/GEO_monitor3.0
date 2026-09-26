@@ -59,8 +59,20 @@ def main() -> int:
     if any(not item for item in questions):
         raise ValueError("元宝批量问题不能为空")
     sys.path.insert(0, str(args.legacy_root.resolve()))
+    from yuanbao_monitor.bowser import yuanbao_web_identity
     from yuanbao_monitor.collector import YuanbaoSourceCollector
     from yuanbao_monitor.controller import YuanbaoController
+
+    # Do this before touching the emulator. A logged-out web profile cannot
+    # receive the mobile conversation, and retrying mobile submissions for 90
+    # seconds only creates duplicate questions while the dashboard appears
+    # frozen. Readiness also checks this, but the in-process guard covers a
+    # session that expires after the worker claimed the task.
+    web_identity = yuanbao_web_identity(args.chrome_port)
+    print(
+        f"元宝网页账号校验通过：{web_identity.get('masked') or '已登录'}",
+        flush=True,
+    )
 
     controller = YuanbaoController(serial=args.serial)
     collector = YuanbaoSourceCollector(

@@ -10,17 +10,210 @@ from unittest.mock import patch
 
 from windows_enterprise_worker.analyzer import DeepSeekAnalyzer, _plausible_commercial_brand
 from windows_enterprise_worker.collectors import (
-    DoubaoCollector, KimiExtensionCollector, YuanbaoCollector, _captured, _sanitize_provider_result,
+    DoubaoCollector, YuanbaoCollector, _captured, _sanitize_provider_result,
     _validate_collected_question, _validate_provider_answer,
-    _yuanbao_capture_incomplete_reason, create_collector,
+    _yuanbao_capture_incomplete_reason, _matching_bundled_chromedriver, create_collector,
 )
 from windows_enterprise_worker.yuanbao_burst import _install_complete_body_extractor
+from windows_enterprise_worker.doubao_resilient_pipeline import (
+    patch_appium_status_probe, patch_new_chat_navigation,
+    recover_partial_payload,
+)
 from windows_enterprise_worker.supervisor import SUPERVISOR, parse_listening_pids, parse_meminfo
 from windows_worker_sdk.contracts import CapturedAnswer
 from windows_worker_sdk.runner import MODEL_ORDER
 
 
 class EnterpriseWorkerTests(unittest.TestCase):
+    def test_doubao_uses_resilient_pipeline_owned_by_production_project(self):
+        command = DoubaoCollector()._command(
+            "推荐一家重庆中央空调服务商", 1, Path("result.jsonl"), Path("temp")
+        )
+        self.assertIn("doubao_resilient_pipeline.py", command[1])
+        self.assertNotIn("DouBao_Monitor_v2.0", command[1])
+        wrapper = (
+            Path(__file__).resolve().parents[1]
+            / "windows_enterprise_worker" / "doubao_resilient_pipeline.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("pipeline.MONITOR_DIR = ROOT", wrapper)
+        self.assertIn("pipeline.launch_account_browser =", wrapper)
+
+    def test_doubao_accepts_stable_high_coverage_partial_sources(self):
+        payload = {
+            "count": 16,
+            "expectedCount": 22,
+            "complete": False,
+            "url": "https://www.doubao.com/chat/123",
+            "answerText": "完整回答正文" * 100,
+            "items": [
+                {"title": f"信源 {index}", "href": f"https://example.com/{index}"}
+                for index in range(16)
+            ],
+        }
+        recovered = recover_partial_payload(
+            RuntimeError("抓取未完整：" + json.dumps(payload, ensure_ascii=False)),
+            "https://www.doubao.com/chat/123",
+        )
+        self.assertIsNotNone(recovered)
+        self.assertTrue(recovered["partialAccepted"])
+        self.assertFalse(recovered["source_capture_complete"])
+        self.assertFalse(recovered["complete"])
+        self.assertEqual(recovered["missingCount"], 6)
+        self.assertAlmostEqual(recovered["sourceCoverage"], 16 / 22, places=4)
+
+    def test_doubao_partial_recovery_rejects_low_quality_or_wrong_chat(self):
+        base = {
+            "count": 2, "expectedCount": 22, "complete": False,
+            "url": "https://www.doubao.com/chat/123",
+            "answerText": "正文" * 200,
+            "items": [{"title": "A", "href": "https://example.com/a"}] * 2,
+        }
+        error = RuntimeError("抓取未完整：" + json.dumps(base, ensure_ascii=False))
+        self.assertIsNone(recover_partial_payload(error, base["url"]))
+        high_coverage = {**base, "count": 16, "items": base["items"] * 8}
+        high_error = RuntimeError(
+            "抓取未完整：" + json.dumps(high_coverage, ensure_ascii=False)
+        )
+        self.assertIsNone(
+            recover_partial_payload(high_error, "https://www.doubao.com/chat/other")
+        )
+
+    def test_appium_ready_message_is_not_misclassified_as_an_error(self):
+        class Response:
+            status_code = 200
+
+            @staticmethod
+            def json():
+                return {
+                    "value": {
+                        "ready": True,
+                        "message": "The server is ready to accept new connections",
+                    }
+                }
+
+        class Http:
+            def get(self, url, timeout):
+                self.request = (url, timeout)
+                return Response()
+
+        class AppiumClient:
+            def __init__(self):
+                self.http = Http()
+
+            @staticmethod
+            def _url(path):
+                return f"http://127.0.0.1:4723/wd/hub/{path}"
+
+        class Mumu:
+            pass
+
+        class Pipeline:
+            pass
+
+        Mumu.AppiumClient = AppiumClient
+        Pipeline.mumu = Mumu
+        patch_appium_status_probe(Pipeline)
+        client = AppiumClient()
+        self.assertTrue(client.server_ready())
+        self.assertEqual(
+            client.http.request,
+            ("http://127.0.0.1:4723/wd/hub/status", 5),
+        )
+
+    def test_current_doubao_direct_new_chat_control_is_preferred(self):
+        clicked = []
+
+        class AutomationError(RuntimeError):
+            pass
+
+        class Automation:
+            def source_root(self):
+                return "xml", {"page": "chat", "ids": {"com.larus.nova:id/larus_chat_top_left_create_new_cvs"}}
+
+            class Appium:
+                @staticmethod
+                def click_id(resource_id, timeout):
+                    clicked.append((resource_id, timeout))
+
+            class Logger:
+                @staticmethod
+                def info(*args):
+                    return None
+
+                @staticmethod
+                def warning(*args):
+                    return None
+
+            appium = Appium()
+            logger = Logger()
+
+            def wait_until(self, predicate, **kwargs):
+                self.waited = kwargs
+                self.assertion = predicate({"page": "chat", "ids": {"input"}})
+
+            def create_new_chat(self):
+                raise AssertionError("legacy navigation should not run")
+
+        class Mumu:
+            DoubaoAutomation = Automation
+            INPUT_ID = "input"
+
+            @staticmethod
+            def page_name(root):
+                return root["page"]
+
+            @staticmethod
+            def has_id(root, resource_id):
+                return resource_id in root["ids"]
+
+        Mumu.AutomationError = AutomationError
+
+        class Pipeline:
+            mumu = Mumu
+
+        patch_new_chat_navigation(Pipeline)
+        instance = Automation()
+        with patch("windows_enterprise_worker.doubao_resilient_pipeline.time.sleep"):
+            instance.create_new_chat()
+        self.assertEqual(
+            clicked,
+            [("com.larus.nova:id/larus_chat_top_left_create_new_cvs", 5)],
+        )
+        self.assertTrue(instance.assertion)
+
+    def test_watchdog_repairs_quark_receiver_before_opening_a_page(self):
+        script = (
+            Path(__file__).resolve().parents[1]
+            / "scripts" / "watch_windows_enterprise_worker.ps1"
+        ).read_text(encoding="utf-8")
+        self.assertIn('$quarkReceiverStart = Join-Path $quarkRoot "start_monitor.ps1"', script)
+        self.assertIn("if (-not $quarkHealth -and (Test-Path -LiteralPath $quarkReceiverStart))", script)
+        self.assertIn("$quarkPageCooldownElapsed", script)
+        self.assertIn("waiting_for_extension", script)
+        self.assertLess(
+            script.index("& $quarkReceiverStart"),
+            script.index('Start-Process -FilePath $quarkExe -WindowStyle Normal'),
+        )
+
+    def test_chromedriver_must_match_installed_chrome_major(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            matching = root / "runtime" / "chromedriver-153" / "chromedriver-win64" / "chromedriver.exe"
+            stale = root / "runtime" / "chromedriver-151" / "chromedriver-win64" / "chromedriver.exe"
+            matching.parent.mkdir(parents=True)
+            stale.parent.mkdir(parents=True)
+            matching.touch()
+            stale.touch()
+            with patch("windows_enterprise_worker.collectors.ROOT", root), patch(
+                "windows_enterprise_worker.collectors._installed_chrome_major", return_value=153,
+            ):
+                self.assertEqual(_matching_bundled_chromedriver(), matching)
+            matching.unlink()
+            with patch("windows_enterprise_worker.collectors.ROOT", root), patch(
+                "windows_enterprise_worker.collectors._installed_chrome_major", return_value=153,
+            ):
+                self.assertIsNone(_matching_bundled_chromedriver())
+
     def test_captured_question_gate_runs_before_answer_topic_gate(self):
         actual = _validate_collected_question(
             "doubao", "推荐一款孕妇喝的酸奶", {"actual_question": "推荐一款孕妇喝的酸奶"},
@@ -56,9 +249,56 @@ class EnterpriseWorkerTests(unittest.TestCase):
             "2025 年国内新能源车市，比亚迪一家独大，吉利、长安紧随其后；"
             "车型端比亚迪海鸥夺冠，特斯拉 Model Y 排第二。"
         )
-        for model in ("doubao", "yuanbao", "wenxin", "quark", "deepseek", "kimi"):
-            with self.subTest(model=model), self.assertRaisesRegex(RuntimeError, "一致性校验"):
-                _validate_provider_answer(model, "推荐一款耐用的无线鼠标", wrong)
+        with patch(
+            "windows_enterprise_worker.collectors.judge_answer_relevance",
+            return_value=False,
+        ):
+            for model in ("doubao", "yuanbao", "wenxin", "quark", "deepseek", "kimi"):
+                with self.subTest(model=model), self.assertRaisesRegex(RuntimeError, "一致性校验"):
+                    _validate_provider_answer(model, "推荐一款耐用的无线鼠标", wrong)
+
+    def test_verified_provider_question_fails_open_only_when_judge_is_unavailable(self):
+        question = "适合长途差旅的降噪耳机怎么选"
+        paraphrase = "经常坐飞机可优先看主动消除环境声、佩戴舒适度和续航表现。"
+        with patch(
+            "windows_enterprise_worker.collectors.judge_answer_relevance",
+            return_value=None,
+        ):
+            _validate_provider_answer(
+                "doubao", question, paraphrase, captured_question=question,
+            )
+            with self.assertRaisesRegex(RuntimeError, "一致性校验"):
+                _validate_provider_answer("doubao", question, paraphrase)
+
+    def test_semantic_rejection_still_wins_over_verified_question(self):
+        question = "适合长途差旅的降噪耳机怎么选"
+        wrong = "这几款儿童牙膏含氟量适中，刷牙时注意不要吞咽。"
+        with patch(
+            "windows_enterprise_worker.collectors.judge_answer_relevance",
+            return_value=False,
+        ), self.assertRaisesRegex(RuntimeError, "一致性校验"):
+            _validate_provider_answer(
+                "doubao", question, wrong, captured_question=question,
+            )
+
+    def test_deepseek_relevance_judge_uses_confidence_thresholds(self):
+        analyzer = object.__new__(DeepSeekAnalyzer)
+        analyzer.model = "test-model"
+        with patch.object(
+            analyzer, "_request",
+            return_value={"relevant": True, "confidence": 0.91, "reason": "同义表达"},
+        ):
+            self.assertIs(analyzer.judge_relevance("问题", "回答"), True)
+        with patch.object(
+            analyzer, "_request",
+            return_value={"relevant": False, "confidence": 0.91, "reason": "不同品类"},
+        ):
+            self.assertIs(analyzer.judge_relevance("问题", "回答"), False)
+        with patch.object(
+            analyzer, "_request",
+            return_value={"relevant": False, "confidence": 0.7, "reason": "不确定"},
+        ):
+            self.assertIsNone(analyzer.judge_relevance("问题", "回答"))
 
     def test_every_provider_accepts_matching_product_answer(self):
         answer = "推荐罗技 G304 无线鼠标，连接稳定，续航长，按键和滚轮也比较耐用。"
@@ -144,47 +384,15 @@ class EnterpriseWorkerTests(unittest.TestCase):
     def tearDownClass(cls) -> None:
         SUPERVISOR.close()
 
-    def test_six_diagnosis_collectors_are_enabled(self):
+    def test_six_report_dimensions_are_enabled(self):
         self.assertEqual(
             MODEL_ORDER,
             ("doubao", "yuanbao", "wenxin", "quark", "deepseek", "kimi"),
         )
 
-    def test_kimi_factory_uses_independent_chrome_extension(self):
-        collector = create_collector("kimi")
-        self.assertIsInstance(collector, KimiExtensionCollector)
-
-    def test_kimi_extension_batch_maps_real_rounds_and_sources(self):
-        question = "推荐一款耐用的无线鼠标"
-
-        class Client:
-            def run_job(self, **kwargs):
-                self.kwargs = kwargs
-                return [
-                    {
-                        "prompt": question,
-                        "reply": f"推荐罗技 G304 无线鼠标，第 {number} 轮续航稳定。",
-                        "sources": [{"title": f"来源{number}", "url": f"https://example.com/{number}"}],
-                        "expected_source_count": 1,
-                        "source_capture_complete": True,
-                        "page_url": f"https://www.kimi.com/chat/{number}",
-                    }
-                    for number in (1, 2)
-                ]
-
-        collector = KimiExtensionCollector()
-        collector.client = Client()
-        collector.prepare_task("diagnosis-1", "diagnosis")
-        with patch("windows_enterprise_worker.collectors._activity", return_value=nullcontext()):
-            output = collector.collect_batch(
-                [(1, question), (2, question)], lambda _message: None
-            )
-        self.assertEqual(sorted(output), [1, 2])
-        self.assertEqual(collector.client.kwargs["job_id"], "geo-diagnosis-1-kimi-batch")
-        self.assertEqual(collector.client.kwargs["questions"], [question])
-        self.assertEqual(collector.client.kwargs["rounds"], 2)
-        self.assertEqual(output[1].capture_mode, "kimi_chrome_extension")
-        self.assertEqual(output[2].sources[0]["title"], "来源2")
+    def test_kimi_direct_collector_is_retired(self):
+        with self.assertRaisesRegex(ValueError, "不支持的模型"):
+            create_collector("kimi")
 
     def test_capture_mapping_preserves_complete_sources(self):
         result = _captured({
@@ -245,6 +453,11 @@ class EnterpriseWorkerTests(unittest.TestCase):
         self.assertNotIn("monitor_core.device_lock", source)
         self.assertIn("问题已发送，等待回答完成", source)
         self.assertIn("flush=True", source)
+        self.assertIn("yuanbao_web_identity(args.chrome_port)", source)
+        self.assertLess(
+            source.index("yuanbao_web_identity(args.chrome_port)"),
+            source.index("YuanbaoController(serial=args.serial)"),
+        )
 
     def test_netstat_parser_limits_reclaim_to_managed_browser_ports(self):
         value = parse_listening_pids(

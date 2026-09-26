@@ -1509,13 +1509,50 @@ class RemoteTaskQueueTests(unittest.TestCase):
         self.queue.finish(task["id"], task["lease_token"], {"status": "completed"})
 
         panel = self.queue.paid_monitor_dashboard(first["customer_slug"])
+        self.assertTrue(self.queue.paid_monitor_access_allowed(first["customer_slug"]))
         self.assertTrue(panel["access_allowed"])
         self.assertEqual(panel["monitor"]["paid_user_id"], "panel-first")
         self.assertEqual(len(panel["days"]), 1)
         self.assertGreater(panel["days"][0]["overall_rate"], 0)
+        self.assertNotIn("answers", panel["days"][0])
+        self.assertTrue(panel["days"][0]["quality"]["body_complete_rounds"])
+        self.assertEqual(panel["answers"][0]["date"], panel["days"][0]["date"])
+        self.assertTrue(panel["answers"][0]["source_capture_complete"])
         self.assertEqual(panel["sources"][0]["url"], "https://example.com/panel-first")
         self.assertTrue(any(item["name"] == "竞品甲" for item in panel["competitors"]))
+        target = next(item for item in panel["brand_landscape"] if item["is_target"])
+        self.assertEqual(target["name"], "品牌-panel-first")
+        self.assertGreaterEqual(target["rank"], 1)
+        self.assertGreater(target["visibility_score"], 0)
+        self.assertGreater(target["model_visibility"]["doubao"], 0)
+        self.assertFalse(any(item["is_target"] for item in panel["competitors"]))
         self.assertNotIn("panel-second", str(panel))
+
+        with patch.object(
+            self.queue, "diagnosis_report", wraps=self.queue.diagnosis_report,
+        ) as report_builder:
+            summary = self.queue.paid_monitor_dashboard(
+                first["customer_slug"], include_audit=False,
+            )
+            first_build_count = report_builder.call_count
+            cached_summary = self.queue.paid_monitor_dashboard(
+                first["customer_slug"], include_audit=False,
+            )
+            self.assertEqual(report_builder.call_count, first_build_count)
+            self.assertEqual(cached_summary, summary)
+        self.assertEqual(summary["answers"], [])
+        self.assertEqual(summary["audit_summary"]["answer_count"], 1)
+        self.assertEqual(summary["audit_summary"]["body_complete_rounds"], 1)
+        self.assertEqual(summary["audit_summary"]["unique_sources"], 1)
+        self.assertNotIn("answers", summary["days"][0])
+        self.assertNotIn("sources", summary["days"][0])
+        self.assertNotIn("source_analysis", summary["days"][0])
+        self.assertNotIn("quality", summary["days"][0])
+        self.assertEqual(summary["sources"], [])
+        self.assertEqual(
+            set(summary["days"][0]["competitors"][0]),
+            {"name", "visibility_score", "model_visibility"},
+        )
 
         empty_other = self.queue.paid_monitor_dashboard(second["customer_slug"])
         self.assertEqual(empty_other["monitor"]["paid_user_id"], "panel-second")
@@ -1525,8 +1562,12 @@ class RemoteTaskQueueTests(unittest.TestCase):
         unpaid = self.queue.create_paid_monitor(self._paid_payload("private-panel", paid=False))
         payload = self.queue.paid_monitor_dashboard(unpaid["customer_slug"])
         self.assertFalse(payload["access_allowed"])
+        self.assertFalse(self.queue.paid_monitor_access_allowed(unpaid["customer_slug"]))
         self.assertIsNone(payload["monitor"])
         self.assertIsNone(self.queue.paid_monitor_dashboard("paid-000000000000000000000000"))
+        self.assertFalse(
+            self.queue.paid_monitor_access_allowed("paid-000000000000000000000000")
+        )
 
 
 class RemoteTaskOriginTests(unittest.TestCase):
