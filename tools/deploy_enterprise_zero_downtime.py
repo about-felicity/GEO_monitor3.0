@@ -49,6 +49,11 @@ def main() -> int:
     upload_file(sftp, ROOT / "doubao_dashboard_server.py", f"{release}/doubao_dashboard_server.py")
     upload_file(sftp, ROOT / "monitor_core/remote_tasks.py", f"{release}/monitor_core/remote_tasks.py")
     upload_file(sftp, ROOT / "monitor_core/quality.py", f"{release}/monitor_core/quality.py")
+    upload_file(
+        sftp,
+        ROOT / "monitor_core/paid_monitor_export.py",
+        f"{release}/monitor_core/paid_monitor_export.py",
+    )
     upload_tree(sftp, ROOT / "yuanbao_monitor/dashboard/dist", f"{release}/dashboard/dist")
 
     next_container = f"geo-panel-slot-{target_api}"
@@ -74,6 +79,7 @@ def main() -> int:
         f"-v {REMOTE_ROOT}/doubao_env_loader.py:/app/doubao_env_loader.py:ro",
         f"-v {release}/monitor_core/remote_tasks.py:/app/monitor_core/remote_tasks.py:ro",
         f"-v {release}/monitor_core/quality.py:/app/monitor_core/quality.py:ro",
+        f"-v {release}/monitor_core/paid_monitor_export.py:/app/monitor_core/paid_monitor_export.py:ro",
         f"-v {REMOTE_ROOT}/model_plugins:/app/model_plugins:ro",
         f"-v {REMOTE_ROOT}/web_collectors/config.py:/app/web_collectors/config.py:ro",
         f"-v {release}/dashboard/dist:/app/yuanbao_monitor/dashboard/dist:ro",
@@ -116,6 +122,11 @@ p.write_text(s)
         upload_file(sftp, ROOT / "doubao_dashboard_server.py", f"{REMOTE_ROOT}/doubao_dashboard_server.py")
         upload_file(sftp, ROOT / "monitor_core/remote_tasks.py", f"{REMOTE_ROOT}/monitor_core/remote_tasks.py")
         upload_file(sftp, ROOT / "monitor_core/quality.py", f"{REMOTE_ROOT}/monitor_core/quality.py")
+        upload_file(
+            sftp,
+            ROOT / "monitor_core/paid_monitor_export.py",
+            f"{REMOTE_ROOT}/monitor_core/paid_monitor_export.py",
+        )
         upload_tree(sftp, ROOT / "yuanbao_monitor/dashboard/dist", f"{REMOTE_ROOT}/yuanbao_monitor/dashboard/dist")
         run(client, f"rm -f {shlex.quote(env_file)}")
         run(client, f"docker stop {shlex.quote(active_container)} >/dev/null")

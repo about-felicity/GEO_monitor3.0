@@ -928,8 +928,10 @@ class RemoteTaskQueue:
         raw_questions = payload.get("questions")
         if not isinstance(raw_questions, list):
             raise ValueError("questions 必须是数组")
+        task_kind = str(payload.get("task_kind") or "").strip().lower()
+        max_questions = 50 if task_kind == "paid_monitor" else 10
         questions = []
-        for item in raw_questions[:10]:
+        for item in raw_questions[:max_questions]:
             text = " ".join(str(item or "").split()).strip()
             if text and text not in questions:
                 questions.append(text[:500])
@@ -1052,9 +1054,11 @@ class RemoteTaskQueue:
                 rounds = int(raw.get(model, 3))
             except (TypeError, ValueError):
                 raise ValueError(f"{model} 轮次必须是整数") from None
-            if rounds < 1 or rounds > 20:
-                raise ValueError(f"{model} 轮次必须在 1 到 20 之间")
+            if rounds < 0 or rounds > 20:
+                raise ValueError(f"{model} 轮次必须在 0 到 20 之间，0 表示停用")
             output[model] = rounds
+        if not any(output.get(model, 0) > 0 for model in DIAGNOSIS_COLLECTION_MODELS):
+            raise ValueError("至少启用一个采集模型")
         return output
 
     def _paid_monitor_payload(self, payload: dict[str, Any], current: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -1076,8 +1080,8 @@ class RemoteTaskQueue:
             text = " ".join(str(item or "").split()).strip()[:500]
             if text and text not in questions:
                 questions.append(text)
-        if not questions or len(questions) > 10:
-            raise ValueError("请填写 1 到 10 个监控问题，每行一个")
+        if not questions or len(questions) > 50:
+            raise ValueError("请填写 1 到 50 个监控问题，每行一个")
         today = datetime.now(BEIJING).date().isoformat()
         starts_on = self._normalize_monitor_date(payload.get("starts_on", current.get("starts_on", today)), "开始日期")
         expires_on = self._normalize_monitor_date(payload.get("expires_on", current.get("expires_on", today)), "截止日期")
@@ -1121,6 +1125,10 @@ class RemoteTaskQueue:
         value["questions"] = json.loads(value.pop("questions_json") or "[]")
         value["question"] = "\n".join(value["questions"])
         value["model_rounds"] = json.loads(value.pop("model_rounds_json") or "{}")
+        value["models"] = [
+            model for model in DIAGNOSIS_MODELS
+            if int(value["model_rounds"].get(model, 0) or 0) > 0
+        ]
         value["customer_slug"] = f"paid-{value['id'][:24]}"
         today = datetime.now(BEIJING).date().isoformat()
         value["term_state"] = (
@@ -1157,12 +1165,18 @@ class RemoteTaskQueue:
         return [item for monitor_id in ids if (item := self.get_paid_monitor(monitor_id)) is not None]
 
     def _create_paid_monitor_task(self, monitor: dict[str, Any], run_date: str) -> dict[str, Any]:
+        collection_models = [
+            model for model in DIAGNOSIS_COLLECTION_MODELS
+            if int(monitor["model_rounds"].get(model, 0) or 0) > 0
+        ]
+        collection_rounds = {
+            model: int(monitor["model_rounds"][model]) for model in collection_models
+        }
         task = self.create({
-            # Keep Kimi as a report dimension without spending Kimi quota.
-            "models": list(DIAGNOSIS_COLLECTION_MODELS),
+            "models": collection_models,
             "questions": list(monitor["questions"]),
-            "rounds": max(monitor["model_rounds"].values()),
-            "model_rounds": monitor["model_rounds"],
+            "rounds": max(collection_rounds.values()),
+            "model_rounds": collection_rounds,
             "question_mode": "interleaved",
             "customer_slug": f"paid-{monitor['id'][:24]}",
             "brand_name": monitor["brand_name"],
@@ -2950,6 +2964,10 @@ class RemoteTaskQueue:
                 return deepcopy(cached[1])
 
         days: list[dict[str, Any]] = []
+        enabled_models = {
+            model for model in DIAGNOSIS_MODELS
+            if int(monitor["model_rounds"].get(model, 0) or 0) > 0
+        }
         for run_row in reversed(run_rows):
             task_id = str(run_row["task_id"] or "")
             if not task_id:
@@ -2977,11 +2995,17 @@ class RemoteTaskQueue:
                 "recommended_rounds": int(report.get("recommended_rounds") or 0),
                 "completed_rounds": int(report.get("completed_rounds") or 0),
                 "target_rounds": int(report.get("target_rounds") or 0),
-                "models": report.get("models") or [],
+                "models": [
+                    item for item in report.get("models") or []
+                    if str(item.get("id") or "") in enabled_models
+                ],
                 "competitors": report.get("competitors") or [],
                 "sources": report.get("sources") or [],
                 "source_analysis": report.get("source_analysis") or {},
-                "answers": report.get("answers") or [],
+                "answers": [
+                    item for item in report.get("answers") or []
+                    if str(item.get("model") or "") in enabled_models
+                ],
                 "quality": report.get("quality") or {},
             })
 
@@ -3165,6 +3189,7 @@ class RemoteTaskQueue:
                 "starts_on": monitor["starts_on"],
                 "expires_on": monitor["expires_on"],
                 "status": monitor["status"],
+                "models": [model for model in DIAGNOSIS_MODELS if model in enabled_models],
                 "model_rounds": monitor["model_rounds"],
                 "updated_at": monitor["updated_at"],
             },

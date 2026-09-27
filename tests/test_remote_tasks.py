@@ -1225,6 +1225,22 @@ class RemoteTaskQueueTests(unittest.TestCase):
             self.queue.sync_paid_monitor_tasks()
         self.assertEqual(len(self.queue.list()), 1)
 
+    def test_paid_monitor_supports_topic_question_set_and_disabled_models(self):
+        questions = [f"头皮护理问题 {index}" for index in range(1, 23)]
+        payload = self._paid_payload("topic-monitor")
+        payload["question"] = "\n".join(questions)
+        payload["model_rounds"] = {
+            "doubao": 3, "yuanbao": 0, "wenxin": 0,
+            "quark": 0, "deepseek": 1, "kimi": 0,
+        }
+        monitor = self.queue.create_paid_monitor(payload)
+        task = monitor["current_task"]
+        self.assertEqual(monitor["models"], ["doubao", "deepseek"])
+        self.assertEqual(task["models"], ["doubao", "deepseek"])
+        self.assertEqual(task["questions"], questions)
+        self.assertEqual(task["model_rounds"], {"doubao": 3, "deepseek": 1})
+        self.assertEqual(task["total_steps"], 88)
+
     def test_paid_monitor_resume_requires_only_unfinished_models_to_be_ready(self):
         rounds = {
             model: 1 for model in (

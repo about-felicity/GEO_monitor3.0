@@ -123,6 +123,7 @@ def main() -> int:
     targets = [
         "doubao_dashboard_server.py",
         "monitor_core/remote_tasks.py",
+        "monitor_core/paid_monitor_export.py",
         "model_plugins/quark/plugin.py",
         "model_plugins/kimi/plugin.py",
         "web_collectors/config.py",
@@ -139,6 +140,11 @@ def main() -> int:
 
     upload_file(sftp, ROOT / "doubao_dashboard_server.py", f"{REMOTE_ROOT}/doubao_dashboard_server.py")
     upload_file(sftp, ROOT / "monitor_core/remote_tasks.py", f"{REMOTE_ROOT}/monitor_core/remote_tasks.py")
+    upload_file(
+        sftp,
+        ROOT / "monitor_core/paid_monitor_export.py",
+        f"{REMOTE_ROOT}/monitor_core/paid_monitor_export.py",
+    )
     upload_file(sftp, ROOT / "model_plugins/quark/plugin.py", f"{REMOTE_ROOT}/model_plugins/quark/plugin.py")
     upload_file(sftp, ROOT / "model_plugins/kimi/plugin.py", f"{REMOTE_ROOT}/model_plugins/kimi/plugin.py")
     upload_file(sftp, ROOT / "web_collectors/config.py", f"{REMOTE_ROOT}/web_collectors/config.py")

@@ -35,6 +35,7 @@ from monitor_core.remote_tasks import (
     task_page_html,
 )
 from monitor_core.http_cache import HTTP_JSON_CACHE
+from monitor_core.paid_monitor_export import build_paid_monitor_xlsx
 from monitor_core.analytics import (
     _brand_matcher as analytics_brand_matcher,
     _mentions as analytics_brand_mentions,
@@ -8590,6 +8591,48 @@ class DashboardHandler(BaseHTTPRequestHandler):
                         "report": payload.get("report"),
                     }
                 self.send_json({"ok": True, **payload})
+            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                self.send_json({"ok": False, "error": str(exc)}, 400)
+            return
+        paid_monitor_export_match = re.fullmatch(
+            r"/api/paid-monitor/(paid-[a-f0-9]{24})/export", path, re.I
+        )
+        if paid_monitor_export_match:
+            if not self.require_remote_tasks():
+                return
+            try:
+                paid_slug = paid_monitor_export_match.group(1).lower()
+                params = parse_qs(urlparse(self.path).query)
+                run_date = str(params.get("date", [""])[0]).strip()
+                if run_date and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", run_date):
+                    raise ValueError("导出日期格式无效")
+                with _PAID_DASHBOARD_LOCKS[paid_slug]:
+                    payload = REMOTE_TASK_QUEUE.paid_monitor_dashboard(
+                        paid_slug, include_audit=True,
+                    )
+                if not payload or not payload.get("access_allowed"):
+                    self.send_json({"ok": False, "error": "监控面板不存在或已到期"}, 404)
+                    return
+                available_dates = [
+                    str(item.get("date") or "") for item in payload.get("days") or []
+                    if isinstance(item, dict) and item.get("date")
+                ]
+                selected_date = run_date or (available_dates[-1] if available_dates else "")
+                if not selected_date or selected_date not in available_dates:
+                    self.send_json({"ok": False, "error": "所选日期尚无可导出数据"}, 404)
+                    return
+                content = build_paid_monitor_xlsx(
+                    payload.get("monitor") or {}, selected_date, payload.get("answers") or [],
+                )
+                self.send_bytes(
+                    content,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    extra_headers={
+                        "Content-Disposition": (
+                            f'attachment; filename="paid-monitor-{selected_date}.xlsx"'
+                        ),
+                    },
+                )
             except (ValueError, TypeError, json.JSONDecodeError) as exc:
                 self.send_json({"ok": False, "error": str(exc)}, 400)
             return

@@ -43,6 +43,17 @@ class ServerLifecycleTests(unittest.TestCase):
         self.assertIn("verify-production-assets.mjs", compose)
         self.assertIn("verify-production-assets.mjs", entrypoint)
 
+    def test_deploy_scripts_include_paid_monitor_export_module(self):
+        rolling = (ROOT / "tools/deploy_enterprise_zero_downtime.py").read_text(
+            encoding="utf-8"
+        )
+        update = (ROOT / "tools/deploy_enterprise_update.py").read_text(
+            encoding="utf-8"
+        )
+        module_path = "monitor_core/paid_monitor_export.py"
+        self.assertGreaterEqual(rolling.count(module_path), 3)
+        self.assertGreaterEqual(update.count(module_path), 2)
+
     def test_occupied_port_preserves_original_bind_error(self):
         blocker = socket.socket()
         blocker.bind(("127.0.0.1", 0))

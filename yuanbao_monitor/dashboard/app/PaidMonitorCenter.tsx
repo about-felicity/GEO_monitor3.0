@@ -8,7 +8,7 @@ const MODELS = [
 ] as const;
 type ModelId = (typeof MODELS)[number][0];
 type MonitorTask = { id:string; status:string; completed_steps:number; total_steps:number; message:string; created_at:string; model_progress?:Record<string,{completed:number;total:number}> };
-type Monitor = { id:string; customer_slug:string; paid_user_id:string; is_paid:boolean; brand_name:string; product_name:string; question:string; starts_on:string; expires_on:string; status:string; term_state:"upcoming"|"current"|"expired"; model_rounds:Record<ModelId,number>; current_task?:MonitorTask|null; runs:{run_date:string;task:MonitorTask|null}[] };
+type Monitor = { id:string; customer_slug:string; paid_user_id:string; is_paid:boolean; brand_name:string; product_name:string; question:string; starts_on:string; expires_on:string; status:string; term_state:"upcoming"|"current"|"expired"; models:ModelId[]; model_rounds:Record<ModelId,number>; current_task?:MonitorTask|null; runs:{run_date:string;task:MonitorTask|null}[] };
 type Draft = Pick<Monitor,"paid_user_id"|"is_paid"|"brand_name"|"product_name"|"question"|"starts_on"|"expires_on"|"model_rounds">;
 
 const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,10);
@@ -36,8 +36,8 @@ export function PaidMonitorCenter(){
     <label><span>开始日期</span><input required type="date" value={value.starts_on} onChange={e=>set({starts_on:e.target.value})}/></label>
     <label><span>监控期限至</span><input required type="date" value={value.expires_on} onChange={e=>set({expires_on:e.target.value})}/></label>
     <label className="paid-toggle"><span>是否为付费用户</span><input type="checkbox" checked={value.is_paid} onChange={e=>set({is_paid:e.target.checked})}/><b>{value.is_paid?"已开通":"未开通"}</b></label>
-    <label className="paid-question"><span>每日需要问的问题（每行一个）</span><textarea required value={value.question} onChange={e=>set({question:e.target.value})}/></label>
-    <div className="paid-rounds"><span>每个模型每日轮次</span>{MODELS.map(([id,label])=><label key={id}><b>{label}</b><input type="number" min={1} max={20} disabled={id==="kimi"} value={id==="kimi"?value.model_rounds.deepseek:value.model_rounds[id]} onChange={e=>{const count=Number(e.target.value);set({model_rounds:{...value.model_rounds,[id]:count,...(id==="deepseek"?{kimi:count}:{})}})}}/></label>)}</div>
+    <label className="paid-question"><span>每日需要问的问题（每行一个，最多 50 个）</span><textarea required value={value.question} onChange={e=>set({question:e.target.value})}/></label>
+    <div className="paid-rounds"><span>每个模型每日轮次（0 表示停用）</span>{MODELS.map(([id,label])=><label key={id}><b>{label}</b><input type="number" min={0} max={20} value={value.model_rounds[id]} onChange={e=>{const count=Number(e.target.value);set({model_rounds:{...value.model_rounds,[id]:count}})}}/></label>)}</div>
   </>}
   return <section className="paid-monitor-center" id="paid-monitors" aria-label="付费用户每日监控">
     <header><div><small>DAILY CUSTOMER MONITORING</small><h2>付费用户每日监控</h2><p>按北京时间每日自动入队；全局仍保持单活动任务，变更会安全调整后续队列。</p></div><div className="paid-monitor-stats"><span>用户 <b>{stats.total}</b></span><span>启用 <b>{stats.active}</b></span><span>进行中 <b>{stats.running}</b></span><span>今日完成 <b>{stats.done}</b></span></div></header>
