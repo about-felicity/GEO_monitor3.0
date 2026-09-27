@@ -63,6 +63,56 @@ if ($mustRestart -and $task) {
     $staleChecks = 0
 }
 
+# Yuanbao submits questions in the emulator but archives the complete answer
+# and sources through a signed-in Chrome debugging session. The worker can stay
+# perfectly healthy while that auxiliary Chrome process has exited, leaving
+# every new daily-monitor task queued forever at 0%. Keep the browser and its
+# Yuanbao page alive independently of the worker process.
+$yuanbaoChrome = @(
+    "C:\Program Files\Google\Chrome\Application\chrome.exe",
+    "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    (Join-Path $env:LOCALAPPDATA "Google\Chrome\Application\chrome.exe")
+) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+$yuanbaoProfile = Join-Path $env:USERPROFILE "ChromeSourceDebug"
+$yuanbaoUrl = "https://yuanbao.tencent.com/chat"
+$yuanbaoTargets = $null
+try { $yuanbaoTargets = Invoke-RestMethod -Uri "http://127.0.0.1:9222/json/list" -TimeoutSec 3 } catch {}
+$yuanbaoDebugReady = [bool]$yuanbaoTargets
+$yuanbaoPageReady = [bool](
+    $yuanbaoTargets | Where-Object { [string]$_.type -eq "page" -and [string]$_.url -like "*yuanbao.tencent.com*" }
+)
+$lastYuanbaoPageOpenedAt = [datetime]::MinValue
+if ($previousState -and $previousState.yuanbao_last_page_opened_at) {
+    try { $lastYuanbaoPageOpenedAt = [datetime]$previousState.yuanbao_last_page_opened_at } catch {}
+}
+$yuanbaoPageCooldownElapsed = ($now - $lastYuanbaoPageOpenedAt).TotalMinutes -ge 10
+$yuanbaoAction = "healthy"
+if (-not $yuanbaoDebugReady -and $yuanbaoChrome) {
+    Start-Process -FilePath $yuanbaoChrome -WindowStyle Normal -ArgumentList @(
+        "--remote-debugging-port=9222",
+        "--remote-allow-origins=*",
+        "--user-data-dir=$yuanbaoProfile",
+        "--no-first-run",
+        "--no-default-browser-check",
+        $yuanbaoUrl
+    )
+    $lastYuanbaoPageOpenedAt = $now
+    $yuanbaoAction = "browser_started"
+} elseif ($yuanbaoDebugReady -and -not $yuanbaoPageReady -and $yuanbaoPageCooldownElapsed -and $yuanbaoChrome) {
+    # Reuse the same user-data directory so Chrome routes the page into the
+    # existing debug session instead of opening an unrelated default profile.
+    Start-Process -FilePath $yuanbaoChrome -WindowStyle Normal -ArgumentList @(
+        "--remote-debugging-port=9222",
+        "--remote-allow-origins=*",
+        "--user-data-dir=$yuanbaoProfile",
+        $yuanbaoUrl
+    )
+    $lastYuanbaoPageOpenedAt = $now
+    $yuanbaoAction = "collection_page_opened"
+} elseif (-not $yuanbaoDebugReady -or -not $yuanbaoPageReady) {
+    $yuanbaoAction = "waiting_for_browser"
+}
+
 # Keep the Quark-hosted Qwen collector on the actual /quarkchat page. Merely
 # having quark.exe running is insufficient: the standalone Qianwen homepage
 # cannot be used by this collector and must never receive enterprise leases.
@@ -144,6 +194,10 @@ $state = [ordered]@{
     server_connection = $connectionOk
     connection_age_seconds = if ([double]::IsPositiveInfinity($connectionAge)) { -1 } else { [math]::Round($connectionAge, 1) }
     stale_checks = $staleChecks
+    yuanbao_debug_ready = $yuanbaoDebugReady
+    yuanbao_page_ready = $yuanbaoPageReady
+    yuanbao_last_page_opened_at = if ($lastYuanbaoPageOpenedAt -eq [datetime]::MinValue) { "" } else { $lastYuanbaoPageOpenedAt.ToString("o") }
+    yuanbao_action = $yuanbaoAction
     quark_process = [bool]$quarkProcess
     quark_ready = $quarkReady
     quark_receiver_action = $quarkReceiverAction
@@ -158,6 +212,6 @@ $state = [ordered]@{
 $temporary = "$WatchdogPath.tmp"
 $state | ConvertTo-Json | Set-Content -LiteralPath $temporary -Encoding UTF8
 Move-Item -LiteralPath $temporary -Destination $WatchdogPath -Force
-if ($action -ne "healthy" -or $quarkAction -ne "healthy") {
+if ($action -ne "healthy" -or $yuanbaoAction -ne "healthy" -or $quarkAction -ne "healthy") {
     ($state | ConvertTo-Json -Compress) | Add-Content -LiteralPath (Join-Path $LogDir ("watchdog-" + $now.ToString("yyyyMMdd") + ".jsonl")) -Encoding UTF8
 }

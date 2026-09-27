@@ -195,6 +195,19 @@ class EnterpriseWorkerTests(unittest.TestCase):
             script.index('Start-Process -FilePath $quarkExe -WindowStyle Normal'),
         )
 
+    def test_watchdog_restores_yuanbao_debug_browser_and_collection_page(self):
+        script = (
+            Path(__file__).resolve().parents[1]
+            / "scripts" / "watch_windows_enterprise_worker.ps1"
+        ).read_text(encoding="utf-8")
+        self.assertIn('http://127.0.0.1:9222/json/list', script)
+        self.assertIn('$yuanbaoProfile = Join-Path $env:USERPROFILE "ChromeSourceDebug"', script)
+        self.assertIn('"--remote-debugging-port=9222"', script)
+        self.assertIn('$yuanbaoPageCooldownElapsed', script)
+        self.assertIn('"*yuanbao.tencent.com*"', script)
+        self.assertIn('yuanbao_debug_ready = $yuanbaoDebugReady', script)
+        self.assertIn('yuanbao_page_ready = $yuanbaoPageReady', script)
+
     def test_chromedriver_must_match_installed_chrome_major(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
