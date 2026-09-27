@@ -110,6 +110,17 @@ def wrap_grabber(module: Any) -> Any:
             return recovered
 
     module.grab_with_retry = resilient_grab_with_retry
+    # The enterprise worker owns persistence, analysis and idempotent upload.
+    # Calling the legacy monitor's SQLite saver and background AI workers here
+    # duplicates those responsibilities and can leave the child alive after a
+    # complete browser capture. Return the payload immediately so the parent
+    # can checkpoint it in the remote-task spool.
+    module.save_payload = lambda _payload: {
+        "deferred": True,
+        "enterprise_worker_owned": True,
+    }
+    module.start_source_ai_worker = lambda: "enterprise-worker"
+    module.start_product_ai_worker = lambda: "enterprise-worker"
     return module
 
 
@@ -200,6 +211,9 @@ def main() -> int:
 
     pipeline.import_grabber = import_resilient_grabber
     pipeline.launch_account_browser = launch_production_extension_browser
+    # The remote-task client is the sole upload path in enterprise mode. The
+    # retired LAN uploader must not enqueue a second copy after capture.
+    pipeline.doubao_lan_client = None
     patch_appium_status_probe(pipeline)
     patch_new_chat_navigation(pipeline)
     return int(pipeline.main() or 0)

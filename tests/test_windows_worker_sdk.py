@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -844,6 +845,75 @@ class WindowsWorkerSDKTests(unittest.TestCase):
             runner.run_task(task)
         self.assertEqual(len(client.records), 1)
         self.assertEqual(client.records[0][2], "doubao")
+        self.assertEqual(client.finished[0][2], "retrying")
+
+    def test_paid_monitor_provider_failure_interrupts_slow_peer_for_checkpoint_retry(self):
+        deepseek_started = threading.Event()
+
+        class Client:
+            def __init__(self):
+                self.finished = []
+                self.records = []
+
+            def heartbeat(self, *args, **kwargs):
+                return {"cancel_requested": False, "pause_requested": False}
+
+            def submit_result(self, *args):
+                self.records.append(args)
+
+            def finish(self, *args):
+                self.finished.append(args)
+
+        class Collector:
+            def __init__(self, model):
+                self.model = model
+
+            def check_ready(self):
+                return {"ready": True}
+
+            def collect_new_conversation(self, question, round_number, progress):
+                if self.model == "doubao":
+                    deepseek_started.wait(timeout=1)
+                    raise RuntimeError("temporary doubao bridge failure")
+                deepseek_started.set()
+                time.sleep(0.05)
+                return CapturedAnswer(
+                    body=f"deepseek answer {round_number}",
+                    body_capture_complete=True,
+                    source_capture_complete=True,
+                )
+
+            def close(self):
+                return None
+
+        class Analyzer:
+            def analyze(self, *args):
+                return AnalysisResult(recommended=False)
+
+        client = Client()
+        task = {
+            "id": "paid-peer-retry-task", "lease_token": "lease",
+            "task_kind": "paid_monitor", "models": ["doubao", "deepseek"],
+            "questions": ["question one", "question two"],
+            "rounds": 1, "model_rounds": {"doubao": 1, "deepseek": 1},
+            "question_mode": "interleaved", "brand_name": "brand",
+            "product_name": "product", "completed_rounds": {},
+        }
+        with tempfile.TemporaryDirectory() as directory, mock.patch.dict(
+            "os.environ",
+            {
+                "GEO_ROUND_ATTEMPTS": "1",
+                "GEO_MODEL_CONCURRENCY": "2",
+                "GEO_PAID_MONITOR_DEEPSEEK_INTERVAL_SECONDS": "0",
+            },
+        ):
+            runner = WorkerRunner(
+                client, "worker", lambda model: Collector(model), Analyzer(),
+                LocalSpool(Path(directory)),
+            )
+            runner.run_task(task)
+        deepseek_records = [row for row in client.records if row[2] == "deepseek"]
+        self.assertLessEqual(len(deepseek_records), 1)
         self.assertEqual(client.finished[0][2], "retrying")
 
 

@@ -17,7 +17,7 @@ from windows_enterprise_worker.collectors import (
 from windows_enterprise_worker.yuanbao_burst import _install_complete_body_extractor
 from windows_enterprise_worker.doubao_resilient_pipeline import (
     patch_appium_status_probe, patch_new_chat_navigation,
-    recover_partial_payload,
+    recover_partial_payload, wrap_grabber,
 )
 from windows_enterprise_worker.supervisor import SUPERVISOR, parse_listening_pids, parse_meminfo
 from windows_worker_sdk.contracts import CapturedAnswer
@@ -77,6 +77,29 @@ class EnterpriseWorkerTests(unittest.TestCase):
         self.assertIsNone(
             recover_partial_payload(high_error, "https://www.doubao.com/chat/other")
         )
+
+    def test_enterprise_doubao_capture_skips_legacy_persistence_workers(self):
+        class Grabber:
+            @staticmethod
+            def grab_with_retry(_ws_url, _latest_href=""):
+                return {"answerText": "完整回答"}
+
+            @staticmethod
+            def save_payload(_payload):
+                raise AssertionError("legacy persistence must not run")
+
+            @staticmethod
+            def start_source_ai_worker():
+                raise AssertionError("legacy source worker must not run")
+
+            @staticmethod
+            def start_product_ai_worker():
+                raise AssertionError("legacy product worker must not run")
+
+        wrapped = wrap_grabber(Grabber)
+        self.assertTrue(wrapped.save_payload({})["enterprise_worker_owned"])
+        self.assertEqual(wrapped.start_source_ai_worker(), "enterprise-worker")
+        self.assertEqual(wrapped.start_product_ai_worker(), "enterprise-worker")
 
     def test_appium_ready_message_is_not_misclassified_as_an_error(self):
         class Response:

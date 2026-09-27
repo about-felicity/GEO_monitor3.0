@@ -160,6 +160,7 @@ class WorkerRunner:
 
     def _wait_for_paid_monitor_deepseek_slot(
         self, task_id: str, lease: str, question: str,
+        stopped: threading.Event | None = None,
     ) -> None:
         """Reserve a persisted DeepSeek slot for paid daily monitoring.
 
@@ -178,6 +179,10 @@ class WorkerRunner:
         target.parent.mkdir(parents=True, exist_ok=True)
         with self._paid_monitor_deepseek_lock:
             while True:
+                if stopped is not None and stopped.is_set():
+                    raise RuntimeError(
+                        "其他模型需要恢复，DeepSeek 已从当前限频等待中让出任务"
+                    )
                 now = time.time()
                 last_started = 0.0
                 try:
@@ -568,7 +573,7 @@ class WorkerRunner:
                         if captured is None:
                             if task_kind == "paid_monitor" and model_id == "deepseek":
                                 self._wait_for_paid_monitor_deepseek_slot(
-                                    task_id, lease, question
+                                    task_id, lease, question, stopped
                                 )
                             if task_kind == "paid_monitor" and model_id == "quark":
                                 self._wait_for_paid_monitor_quark_slot(
@@ -630,7 +635,14 @@ class WorkerRunner:
                     future.result()
                 except BaseException as exc:
                     errors.append(exc)
-                    if isinstance(exc, TaskControl):
+                    if isinstance(exc, TaskControl) or (
+                        str(task.get("task_kind") or "") == "paid_monitor"
+                    ):
+                        # A paid monitor may deliberately keep DeepSeek alive
+                        # for hours because of its five-minute interval. If a
+                        # peer provider exhausts its own retries, interrupt the
+                        # wait and re-claim from checkpoints instead of leaving
+                        # that failed provider at zero until DeepSeek ends.
                         stopped.set()
         controls = [exc for exc in errors if isinstance(exc, TaskControl)]
         if controls:
